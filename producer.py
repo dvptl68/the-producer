@@ -1,14 +1,18 @@
 import os
-from discord.ext import commands
+import discord
 from dotenv import load_dotenv
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 
-bot = commands.Bot(command_prefix='!')
+client = discord.Client()
 
-@bot.command(name='hi', help='')
-async def nine_nine(ctx):
-  await ctx.send('hello')
+@client.event
+async def on_message(message):
 
-bot.run(TOKEN)
+  if message.author == client.user:
+    return
+
+  await message.channel.send('Received message')
+
+client.run(TOKEN)
