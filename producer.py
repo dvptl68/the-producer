@@ -5,14 +5,14 @@ from dotenv import load_dotenv
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 
-client = discord.Client()
+class CustomClient(discord.Client):
 
-@client.event
-async def on_message(message):
+  async def on_message(message):
 
-  if message.author == client.user:
-    return
+    if message.author == client.user:
+      return
 
-  await message.channel.send('Received message')
+    await message.channel.send('Received message')
 
+client = CustomClient()
 client.run(TOKEN)
