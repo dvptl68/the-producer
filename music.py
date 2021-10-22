@@ -2,7 +2,6 @@ import pafy
 import vlc as v
 from time import sleep
 
-# url = input('Enter a YouTube URL to play song: ')
 url = 'https://www.youtube.com/watch?v=e16ZqNHSaEY'
 
 # Get best playable URL
@@ -18,9 +17,8 @@ media.get_mrl()
 player.set_media(media)
 player.play()
 
-# Wait for song to finish before 
-goodStates = ["State.Playing", "State.NothingSpecial", "State.Opening"]
-while str(player.get_state()) in goodStates:
+# Wait for song to finish
+while player.get_state() in ["State.Playing", "State.NothingSpecial", "State.Opening"]:
   sleep(1)
 
 player.stop()
