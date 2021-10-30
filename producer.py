@@ -1,18 +1,26 @@
 import os
-import discord
+from discord.ext import commands
 from dotenv import load_dotenv
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')    
 
-client = discord.Client()
+bot = commands.Bot(command_prefix='!')
 
-@client.event
-async def on_message(message):
+@bot.command(name = 'join', help = 'Join the voice channel you are currently in.')
+async def join(ctx):
+  voice_client = ctx.message.author.voice
+  if voice_client is not None:
+    await voice_client.channel.connect()
+  else:
+    await ctx.send("You are not connected to a voice channel.")
 
-  if message.author == client.user:
-    return
+@bot.command(name = 'leave', help = 'Leave the voice channel.')
+async def leave(ctx):
+  voice_client = ctx.voice_client
+  if voice_client is not None:
+    await voice_client.disconnect()
+  else:
+    await ctx.send("I am not connected to a voice channel.")
 
-  await message.channel.send('Received message')
-
-client.run(TOKEN)
+bot.run(TOKEN)
