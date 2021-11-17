@@ -1,12 +1,12 @@
 import os
+import json
 import discord
 from discord.ext import commands
-from dotenv import load_dotenv
 
-load_dotenv()
-TOKEN = os.getenv('DISCORD_TOKEN')
+data = json.load(open('config.json'))
+PREFIX, TOKEN = data["prefix"], data["token"]
 
-bot = commands.Bot(command_prefix='!')
+bot = commands.Bot(command_prefix=PREFIX)
 
 @bot.command(name = 'join', help = 'Join the voice channel you are currently in.')
 async def join(ctx):
