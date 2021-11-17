@@ -1,4 +1,22 @@
 {
+  "name": "the-producer",
+  "version": "1.0.0",
+  "description": "A discord music player bot",
+  "main": "producer.js",
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dvptl68/the-producer.git"
+  },
+  "author": "Dev Patel",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dvptl68/the-producer/issues"
+  },
+  "homepage": "https://github.com/dvptl68/the-producer#readme",
   "dependencies": {
     "@discordjs/opus": "^0.7.0",
     "discord.js": "^13.3.1",
