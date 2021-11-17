@@ -8,3 +8,16 @@ client.login(token);
 client.once('ready', () => {
   console.log('Ready!');
 });
+
+client.on('messageCreate', async message => {
+
+  if (message.author.bot) return;
+
+  const content = message.content.toLowerCase();
+
+  if (!content.startsWith(prefix)) return;
+
+  if (content.startsWith(`${prefix}play`)) message.channel.send('Playing music.');
+  else if (content.startsWith(`${prefix}stop`)) message.channel.send('Stopping music.');
+  else message.channel.send('Not a valid command.');
+});
