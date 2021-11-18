@@ -45,34 +45,18 @@ client.on('messageCreate', async message => {
   const command = content[0].substring(prefix.length);
 
   if (command in actions) {
-    log(`Executing command "${message.content}" from user ${message.author.username}`);
+    log(`Executing command "${message.content}" from @${message.author.username}`);
     actions[command](message);
   } else {
-    log(`Invalid command "${message.content}" from user ${message.author.username}`);
+    log(`Invalid command "${message.content}" from @${message.author.username}`);
     message.channel.send(`Invalid command "${command}"`);
   }
 });
 
-// Joins given voice channel
-async function connectToChannel(channel) {
-
-	const connection = joinVoiceChannel({
-		channelId: channel.id,
-		guildId: channel.guild.id,
-		adapterCreator: channel.guild.voiceAdapterCreator
-	});
-
-  // Wait 30 seconds for connection to be ready
-	try {
-		await entersState(connection, VoiceConnectionStatus.Ready, 30e3);
-	} catch (error) {
-		connection.destroy();
-		throw err;
-	}
-}
-
+// Join voice channel and play given song
 async function play(message) {
 
+  // Initial checks
   const channel = message.member?.voice.channel;
   if (!channel) {
     log("ERROR: User not in a voice channel");
@@ -91,14 +75,35 @@ async function play(message) {
   // const title = songInfo.videoDetails.title;
   // const url = songInfo.videoDetails.video_url;
 
-  try {
-    await connectToChannel(channel);
-  } catch (err) {
-    log(err);
-  }
+  // Join voice channel
+  const conn = joinVoiceChannel({
+		channelId: channel.id,
+		guildId: channel.guild.id,
+		adapterCreator: channel.guild.voiceAdapterCreator
+	});
+
+  // Wait 30 seconds for connection to be ready
+	try {
+		await entersState(conn, VoiceConnectionStatus.Ready, 30e3);
+	} catch (error) {
+		conn.destroy();
+		log(err);
+	}
+
+  log("Created voice connection");
 };
 
+// Leave voice channel
 async function leave(message) {
 
-  getVoiceConnection(message.guild.id).destroy();
+  const conn = getVoiceConnection(message.guild.id);
+
+  if (conn === undefined) {
+    log("ERROR: No voice connection exists");
+    message.channel.send("I am not in a voice channel!");
+  } else {
+    conn.destroy();
+    log("Destroyed voice connection");
+    message.channel.send("Goodbye!");
+  }
 }
