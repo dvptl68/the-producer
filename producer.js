@@ -1,4 +1,18 @@
-const { Client, Intents } = require('discord.js');
+const {
+  Client,
+  VoiceChannel,
+  Intents
+} = require('discord.js');
+const {
+  joinVoiceChannel,
+  createAudioPlayer,
+  createAudioResource,
+  entersState,
+  getVoiceConnection,
+  StreamType,
+  AudioPlayerStatus,
+  VoiceConnectionStatus
+} = require('@discordjs/voice');
 const ytdl = require('ytdl-core');
 const { prefix, token } = require('./config.json');
 
@@ -16,7 +30,8 @@ const log = out => console.log(`[${new Date().toLocaleString()}] ${out}`);
 
 // All commands that bot can execute
 const actions = {
-  "play": playSong
+  "play": play,
+  "leave": leave
 };
 
 // Performs checks and calls proper action
@@ -30,33 +45,60 @@ client.on('messageCreate', async message => {
   const command = content[0].substring(prefix.length);
 
   if (command in actions) {
-
     log(`Executing command "${message.content}" from user ${message.author.username}`);
     actions[command](message);
-
   } else {
-
     log(`Invalid command "${message.content}" from user ${message.author.username}`);
     message.channel.send(`Invalid command "${command}"`);
   }
 });
 
-async function playSong(message) {
+// Joins given voice channel
+async function connectToChannel(channel) {
 
-  const voiceChannel = message.member.voice.channel;
-  if (!voiceChannel) return message.channel.send("You need to be in a voice channel to play music!");
+	const connection = joinVoiceChannel({
+		channelId: channel.id,
+		guildId: channel.guild.id,
+		adapterCreator: channel.guild.voiceAdapterCreator
+	});
 
-  const permissions = voiceChannel.permissionsFor(message.client.user);
-  if (!permissions.has("CONNECT") || !permissions.has("SPEAK")) return message.channel.send("I need the permissions to join and speak in your voice channel!");
+  // Wait 30 seconds for connection to be ready
+	try {
+		await entersState(connection, VoiceConnectionStatus.Ready, 30e3);
+	} catch (error) {
+		connection.destroy();
+		throw err;
+	}
+}
 
-  const songInfo = await ytdl.getInfo('https://www.youtube.com/watch?v=iI34LYmJ1Fs');
-  const title = songInfo.videoDetails.title;
-  const url = songInfo.videoDetails.video_url;
+async function play(message) {
+
+  const channel = message.member?.voice.channel;
+  if (!channel) {
+    log("ERROR: User not in a voice channel");
+    message.channel.send("You need to be in a voice channel to play music!");
+    return;
+  }
+
+  const permissions = channel.permissionsFor(message.client.user);
+  if (!permissions.has("CONNECT") || !permissions.has("SPEAK")) {
+    log("ERROR: Bot does not have permissions for the voice channel");
+    message.channel.send("I need the permissions to join and speak in your voice channel!");
+    return;
+  }
+
+  // const songInfo = await ytdl.getInfo('https://www.youtube.com/watch?v=iI34LYmJ1Fs');
+  // const title = songInfo.videoDetails.title;
+  // const url = songInfo.videoDetails.video_url;
 
   try {
-    const conn = await voiceChannel.join();
-    log('success');
+    await connectToChannel(channel);
   } catch (err) {
     log(err);
   }
 };
+
+async function leave(message) {
+
+  getVoiceConnection(message.guild.id).destroy();
+}
