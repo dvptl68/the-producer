@@ -5,6 +5,7 @@
   "main": "producer.js",
   "devDependencies": {},
   "scripts": {
+    "start": "node producer.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
