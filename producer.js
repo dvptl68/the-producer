@@ -38,7 +38,6 @@ const log = out => console.log(`[${new Date().toLocaleString()}] ${out}`);
 const actions = {
   "play": play,
   "pause": pause,
-  "unpause": unpause,
   "stop": stop,
   "leave": leave
 };
@@ -110,8 +109,14 @@ async function play(message, param) {
   }
 
   if (!param) {
-    log("ERROR: No song provided");
-    message.channel.send("You need to provide a song to play!");
+    if (player.state.status === AudioPlayerStatus.Paused) {
+      message.react("▶️");
+      player.unpause();
+      log("Unpaused music");
+    } else {
+      log("ERROR: No song provided");
+      message.channel.send("You need to provide a song to play!");
+    }
     return;
   }
 
@@ -169,26 +174,12 @@ async function pause(message) {
   }
 }
 
-// Unpauses paused music if any
-async function unpause(message) {
-
-  if (player.state.status === AudioPlayerStatus.Paused) {
-    message.react("▶️");
-    player.unpause();
-    log("Unpaused music");
-  } else {
-    log("ERROR: Nothing currently pause");
-    message.channel.send("Nothing is currently paused!");
-  }
-}
-
 async function stop(message = null) {
 
   if (message !== null) message.react("🛑");
 
   queue = [];
   player.stop();
-  player.removeAllListeners();
 
   log("Cleared queue and stopped player");
 }
