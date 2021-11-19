@@ -42,6 +42,10 @@ const actions = {
   "leave": leave
 };
 
+// Audio player and song queue
+const player = createAudioPlayer();
+const queue = [];
+
 // Performs checks and calls proper action
 client.on('messageCreate', async message => {
 
@@ -83,9 +87,11 @@ async function play(message, param) {
     return;
   }
 
-  // const songInfo = await ytdl.getInfo('https://www.youtube.com/watch?v=iI34LYmJ1Fs');
-  // const title = songInfo.videoDetails.title;
-  // const url = songInfo.videoDetails.video_url;
+  if (!param) {
+    log("ERROR: No song provided");
+    message.channel.send("You need to provide a song to play!");
+    return;
+  }
 
   // Join voice channel
   const conn = joinVoiceChannel({
@@ -103,19 +109,31 @@ async function play(message, param) {
 		log(err);
 	}
 
-  const yt_info = await playdl.search(param, { limit: 1 });
-	const stream = await playdl.stream(yt_info[0].url);
-  const resource = createAudioResource(stream.stream, {
-    inputType: stream.type
+  const songInfo = await playdl.search(song, { limit: 1 })[0];
+	const stream = await playdl.stream(songInfo.url);
+  const resource = createAudioResource(stream.stream, { inputType: stream.type });
+
+  queue.push({
+    title: songInfo.title,
+    url: songInfo.url,
+    resource: resource
   });
-  const player = createAudioPlayer({
-    behaviors: {
-      noSubscriber: NoSubscriberBehavior.Play
-    }
-  });
-  player.play(resource);
+
+  log(`Queued song ${songInfo.title} (${songInfo.url})`);
+  message.channel.send(`Queued song ${songInfo.title} (${songInfo.url})`);
+
+  await playSong(resource);
   conn.subscribe(player);
 };
+
+// Plays song based on song queue
+async function playSong(resource) {
+
+  player.play(resource);
+  player.on(AudioPlayerStatus.Idle, () => {
+    log("Finished song");
+  });
+}
 
 // Leave voice channel
 async function leave(message) {
