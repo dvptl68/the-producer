@@ -1,6 +1,5 @@
 const {
   Client,
-  VoiceChannel,
   Intents
 } = require('discord.js');
 const {
@@ -9,12 +8,9 @@ const {
   createAudioResource,
   entersState,
   getVoiceConnection,
-  NoSubscriberBehavior,
-  StreamType,
   AudioPlayerStatus,
   VoiceConnectionStatus
 } = require('@discordjs/voice');
-const ytdl = require('ytdl-core');
 const playdl = require('play-dl');
 const { prefix, token } = require('./config.json');
 
@@ -39,12 +35,13 @@ const log = out => console.log(`[${new Date().toLocaleString()}] ${out}`);
 // All commands that bot can execute
 const actions = {
   "play": play,
+  "stop": stop,
   "leave": leave
 };
 
 // Audio player and song queue
 const player = createAudioPlayer();
-const queue = [];
+let queue = [];
 
 // Performs checks and calls proper action
 client.on('messageCreate', async message => {
@@ -93,6 +90,15 @@ async function play(message, param) {
     return;
   }
 
+  const songInfo = await playdl.search(param, { limit: 1 });
+  if (songInfo.length === 0) {
+    log(`ERROR: "${param}" not found`);
+    message.channel.send(`***${param}*** not found!`);
+    return;
+  }
+
+  message.channel.send(`Queued ***${songInfo[0].title}***\n${songInfo[0].url}`); // sent before stream is created to avoid visible lag
+
   // Join voice channel
   const conn = joinVoiceChannel({
 		channelId: channel.id,
@@ -109,30 +115,48 @@ async function play(message, param) {
 		log(err);
 	}
 
-  const songInfo = await playdl.search(song, { limit: 1 })[0];
-	const stream = await playdl.stream(songInfo.url);
+	const stream = await playdl.stream(songInfo[0].url);
   const resource = createAudioResource(stream.stream, { inputType: stream.type });
 
   queue.push({
-    title: songInfo.title,
-    url: songInfo.url,
-    resource: resource
+    title: songInfo[0].title,
+    resource: resource,
+    channel: message.channel
   });
+  log(`Queued "${songInfo[0].title}" (${songInfo[0].url})`);
 
-  log(`Queued song ${songInfo.title} (${songInfo.url})`);
-  message.channel.send(`Queued song ${songInfo.title} (${songInfo.url})`);
-
-  await playSong(resource);
+  await playSong();
   conn.subscribe(player);
 };
 
 // Plays song based on song queue
-async function playSong(resource) {
+async function playSong() {
+
+  if (queue.length === 0) return;
+
+  const {
+    title,
+    resource,
+    channel
+  } = queue.shift();
+
+  log(`Playing "${title}"`);
+  channel.send(`Playing ***${title}***`);
 
   player.play(resource);
-  player.on(AudioPlayerStatus.Idle, () => {
-    log("Finished song");
+  player.once(AudioPlayerStatus.Idle, () => {
+    log(`Finished playing ${title}`);
+    // playSong(channel);
   });
+}
+
+async function stop() {
+
+  queue = [];
+  player.stop();
+  player.removeAllListeners();
+
+  log("Cleared queue and stopped player");
 }
 
 // Leave voice channel
@@ -148,4 +172,6 @@ async function leave(message) {
     log("Destroyed voice connection");
     message.channel.send("Goodbye!");
   }
+
+  stop();
 }
