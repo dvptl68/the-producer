@@ -10,7 +10,8 @@ const {
   getVoiceConnection,
   AudioPlayerStatus,
   VoiceConnectionStatus,
-  NoSubscriberBehavior
+  NoSubscriberBehavior,
+  PlayerSubscription
 } = require('@discordjs/voice');
 const playdl = require('play-dl');
 const { prefix, token } = require('./config.json');
@@ -38,10 +39,12 @@ const log = out => console.log(`[${new Date().toLocaleString()}] ${out}`);
 const actions = {
   "play": play,
   "pause": pause,
+  "skip": skip,
+  "stop": stop,
   "queue": printQueue,
   "remove": remove,
-  "stop": stop,
-  "leave": leave
+  "leave": leave,
+  "help": help
 };
 
 // Performs checks and calls proper action
@@ -178,6 +181,15 @@ async function pause(message) {
   }
 }
 
+// Skip current music
+async function skip(message) {
+
+  player.stop();
+  player.emit(AudioPlayerStatus.Idle);
+  log("Skipped current music");
+  message.react("⏭️");
+}
+
 // List song queue
 async function printQueue(message) {
 
@@ -194,6 +206,7 @@ async function printQueue(message) {
   message.channel.send(output);
 }
 
+// Remove specified music from queue
 async function remove(message, param) {
 
   // Initial checks
@@ -223,7 +236,7 @@ async function remove(message, param) {
   message.channel.send(`Removed ***${removedInfo.title}*** from queue.`);
 }
 
-// Stop player and clears queue
+// Stop player and clear queue
 async function stop(message = null) {
 
   if (message !== null) message.react("🛑");
@@ -249,4 +262,20 @@ async function leave(message) {
   }
 
   stop();
+}
+
+// Print help for every command
+async function help(message) {
+
+  message.channel.send(
+`__**Commands**__
+**play [song]**:
+**pause**:
+**play**:
+**skip**:
+**queue**:
+**remove**:
+**leave**:
+`
+  );
 }
