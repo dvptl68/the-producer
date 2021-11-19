@@ -39,6 +39,7 @@ const actions = {
   "play": play,
   "pause": pause,
   "queue": printQueue,
+  "remove": remove,
   "stop": stop,
   "leave": leave
 };
@@ -191,6 +192,35 @@ async function printQueue(message) {
 
   log("Printed song queue");
   message.channel.send(output);
+}
+
+async function remove(message, param) {
+
+  // Initial checks
+  if (!param) {
+    log("ERROR: No queue index provided");
+    message.channel.send("You need to provide a song queue position to remove!");
+    return;
+  }
+
+  const ind = parseInt(param);
+
+  if (isNaN(ind)) {
+    log("ERROR: Provided parameter is not a number");
+    message.channel.send(`"${param}" is not a number!`);
+    return;
+  }
+
+  if (ind < 1 || ind > queue.length) {
+    log("ERROR: Provided parameter is not in queue range!");
+    message.channel.send(`Position ${ind} is not in the queue!`);
+    return;
+  }
+
+  const removedInfo = queue[ind - 1];
+  queue.splice(ind - 1, 1);
+  log(`Removed queue item ${ind}: "${removedInfo.title}"`);
+  message.channel.send(`Removed ***${removedInfo.title}*** from queue.`);
 }
 
 // Stop player and clears queue
