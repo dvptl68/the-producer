@@ -9,7 +9,8 @@ const {
   entersState,
   getVoiceConnection,
   AudioPlayerStatus,
-  VoiceConnectionStatus
+  VoiceConnectionStatus,
+  NoSubscriberBehavior
 } = require('@discordjs/voice');
 const playdl = require('play-dl');
 const { prefix, token } = require('./config.json');
@@ -39,10 +40,6 @@ const actions = {
   "leave": leave
 };
 
-// Audio player and song queue
-const player = createAudioPlayer();
-let queue = [];
-
 // Performs checks and calls proper action
 client.on('messageCreate', async message => {
 
@@ -64,6 +61,31 @@ client.on('messageCreate', async message => {
     log(`Invalid command "${message.content}" from @${message.member.displayName} (${message.author.tag})\n`);
     message.channel.send(`Invalid command "${command}"`);
   }
+});
+
+// Audio player and song queue
+const player = createAudioPlayer({
+	behaviors: {
+		noSubscriber: NoSubscriberBehavior.Stop,
+	},
+});
+let queue = [];
+
+// Plays next song if queue is not empty
+player.on(AudioPlayerStatus.Idle, () => {
+
+  if (queue.length === 0) return;
+
+  const {
+    title,
+    resource,
+    channel
+  } = queue.shift();
+
+  log(`Playing "${title}"`);
+  channel.send(`Playing ***${title}***`);
+
+  player.play(resource);
 });
 
 // Join voice channel and play given song
@@ -125,30 +147,9 @@ async function play(message, param) {
   });
   log(`Queued "${songInfo[0].title}" (${songInfo[0].url})`);
 
-  await playSong();
+  if (player.state.status === AudioPlayerStatus.Idle) player.emit(AudioPlayerStatus.Idle);
   conn.subscribe(player);
 };
-
-// Plays song based on song queue
-async function playSong() {
-
-  if (queue.length === 0) return;
-
-  const {
-    title,
-    resource,
-    channel
-  } = queue.shift();
-
-  log(`Playing "${title}"`);
-  channel.send(`Playing ***${title}***`);
-
-  player.play(resource);
-  player.once(AudioPlayerStatus.Idle, () => {
-    log(`Finished playing ${title}`);
-    // playSong(channel);
-  });
-}
 
 async function stop() {
 
