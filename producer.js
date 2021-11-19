@@ -9,11 +9,13 @@ const {
   createAudioResource,
   entersState,
   getVoiceConnection,
+  NoSubscriberBehavior,
   StreamType,
   AudioPlayerStatus,
   VoiceConnectionStatus
 } = require('@discordjs/voice');
 const ytdl = require('ytdl-core');
+const playdl = require('play-dl');
 const { prefix, token } = require('./config.json');
 
 // Discord client
@@ -43,9 +45,9 @@ const actions = {
 // Performs checks and calls proper action
 client.on('messageCreate', async message => {
 
-  if (message.author.bot || !message.content.startsWith(prefix)) return;
-
   const content = message.content.toLowerCase();
+
+  if (message.author.bot || !content.startsWith(prefix)) return;
 
   let splitInd = content.indexOf(" ");
   if (splitInd === -1) splitInd = message.content.length;
@@ -55,9 +57,10 @@ client.on('messageCreate', async message => {
 
   if (command in actions) {
     log(`Executing command "${message.content}" from @${message.member.displayName} (${message.author.tag})`);
-    actions[command](message, param);
+    await actions[command](message, param);
+    log("Completed command execution\n");
   } else {
-    log(`Invalid command "${message.content}" from @${message.member.displayName} (${message.author.tag})`);
+    log(`Invalid command "${message.content}" from @${message.member.displayName} (${message.author.tag})\n`);
     message.channel.send(`Invalid command "${command}"`);
   }
 });
@@ -94,12 +97,24 @@ async function play(message, param) {
   // Wait 30 seconds for connection to be ready
 	try {
 		await entersState(conn, VoiceConnectionStatus.Ready, 30e3);
+    log("Created voice connection");
 	} catch (error) {
 		conn.destroy();
 		log(err);
 	}
 
-  log("Created voice connection");
+  const yt_info = await playdl.search(param, { limit: 1 });
+	const stream = await playdl.stream(yt_info[0].url);
+  const resource = createAudioResource(stream.stream, {
+    inputType: stream.type
+  });
+  const player = createAudioPlayer({
+    behaviors: {
+      noSubscriber: NoSubscriberBehavior.Play
+    }
+  });
+  player.play(resource);
+  conn.subscribe(player);
 };
 
 // Leave voice channel
