@@ -17,14 +17,20 @@ const ytdl = require('ytdl-core');
 const { prefix, token } = require('./config.json');
 
 // Discord client
-const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES, Intents.FLAGS.GUILD_VOICE_STATES] });
+const client = new Client({
+  intents: [
+    Intents.FLAGS.GUILDS,
+    Intents.FLAGS.GUILD_MESSAGES,
+    Intents.FLAGS.GUILD_VOICE_STATES
+  ]
+});
 client.login(token);
 
-// Bot status loggers
-client.on('ready', () => log(`Logged in as ${client.user.tag}`));
-client.on('reconnecting', () => log('Reconnecting'));
-client.on('resume', () => log(`Connected ${client.user.tag}`));
-client.on('disconnect', () => log('Disconnecting'));
+// Status loggers
+client.on('ready', () => log(`Logged in as ${client.user.tag}\n`));
+client.on('reconnecting', () => log('Reconnecting\n'));
+client.on('resume', () => log(`Connected ${client.user.tag}\n`));
+client.on('disconnect', () => log('Disconnecting\n'));
 
 const log = out => console.log(`[${new Date().toLocaleString()}] ${out}`);
 
@@ -37,24 +43,27 @@ const actions = {
 // Performs checks and calls proper action
 client.on('messageCreate', async message => {
 
-  if (message.author.bot) return;
+  if (message.author.bot || !message.content.startsWith(prefix)) return;
 
-  const content = message.content.toLowerCase().split(" ").filter(Boolean);
-  if (!content[0].startsWith(prefix)) return;
+  const content = message.content.toLowerCase();
 
-  const command = content[0].substring(prefix.length);
+  let splitInd = content.indexOf(" ");
+  if (splitInd === -1) splitInd = message.content.length;
+
+  const command = content.substring(prefix.length, splitInd);
+  const param = content.substring(splitInd).trim();
 
   if (command in actions) {
-    log(`Executing command "${message.content}" from @${message.author.username}`);
-    actions[command](message);
+    log(`Executing command "${message.content}" from @${message.member.displayName} (${message.author.tag})`);
+    actions[command](message, param);
   } else {
-    log(`Invalid command "${message.content}" from @${message.author.username}`);
+    log(`Invalid command "${message.content}" from @${message.member.displayName} (${message.author.tag})`);
     message.channel.send(`Invalid command "${command}"`);
   }
 });
 
 // Join voice channel and play given song
-async function play(message) {
+async function play(message, param) {
 
   // Initial checks
   const channel = message.member?.voice.channel;
