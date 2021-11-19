@@ -38,6 +38,7 @@ const log = out => console.log(`[${new Date().toLocaleString()}] ${out}`);
 const actions = {
   "play": play,
   "pause": pause,
+  "queue": printQueue,
   "stop": stop,
   "leave": leave
 };
@@ -109,10 +110,12 @@ async function play(message, param) {
   }
 
   if (!param) {
+
+    // Unpause music if any
     if (player.state.status === AudioPlayerStatus.Paused) {
-      message.react("▶️");
       player.unpause();
       log("Unpaused music");
+      message.react("▶️");
     } else {
       log("ERROR: No song provided");
       message.channel.send("You need to provide a song to play!");
@@ -161,19 +164,36 @@ async function play(message, param) {
   conn.subscribe(player);
 };
 
-// Pauses current music if any
+// Pause current music if any
 async function pause(message) {
 
   if (player.state.status === AudioPlayerStatus.Playing) {
-    message.react("⏸️");
     player.pause();
     log("Paused music");
+    message.react("⏸️");
   } else {
     log("ERROR: Nothing currently playing");
     message.channel.send("Nothing is currently playing!");
   }
 }
 
+// List song queue
+async function printQueue(message) {
+
+  let output = "Songs in queue:";
+  if (queue.length === 0) {
+    output = "No songs are in the queue.";
+  } else {
+    for (let i = 0; i < queue.length; i++) {
+      output += `\n**${i + 1}**: *${queue[i].title}*`;
+    }
+  }
+
+  log("Printed song queue");
+  message.channel.send(output);
+}
+
+// Stop player and clears queue
 async function stop(message = null) {
 
   if (message !== null) message.react("🛑");
