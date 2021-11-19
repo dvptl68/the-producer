@@ -20,6 +20,7 @@ const client = new Client({
   intents: [
     Intents.FLAGS.GUILDS,
     Intents.FLAGS.GUILD_MESSAGES,
+    Intents.FLAGS.GUILD_MESSAGE_REACTIONS,
     Intents.FLAGS.GUILD_VOICE_STATES
   ]
 });
@@ -36,6 +37,8 @@ const log = out => console.log(`[${new Date().toLocaleString()}] ${out}`);
 // All commands that bot can execute
 const actions = {
   "play": play,
+  "pause": pause,
+  "unpause": unpause,
   "stop": stop,
   "leave": leave
 };
@@ -112,6 +115,8 @@ async function play(message, param) {
     return;
   }
 
+  message.react("👍");
+
   const songInfo = await playdl.search(param, { limit: 1 });
   if (songInfo.length === 0) {
     log(`ERROR: "${param}" not found`);
@@ -151,7 +156,35 @@ async function play(message, param) {
   conn.subscribe(player);
 };
 
-async function stop() {
+// Pauses current music if any
+async function pause(message) {
+
+  if (player.state.status === AudioPlayerStatus.Playing) {
+    message.react("⏸️");
+    player.pause();
+    log("Paused music");
+  } else {
+    log("ERROR: Nothing currently playing");
+    message.channel.send("Nothing is currently playing!");
+  }
+}
+
+// Unpauses paused music if any
+async function unpause(message) {
+
+  if (player.state.status === AudioPlayerStatus.Paused) {
+    message.react("▶️");
+    player.unpause();
+    log("Unpaused music");
+  } else {
+    log("ERROR: Nothing currently pause");
+    message.channel.send("Nothing is currently paused!");
+  }
+}
+
+async function stop(message = null) {
+
+  if (message !== null) message.react("🛑");
 
   queue = [];
   player.stop();
@@ -169,9 +202,9 @@ async function leave(message) {
     log("ERROR: No voice connection exists");
     message.channel.send("I am not in a voice channel!");
   } else {
+    message.react("👋");
     conn.destroy();
     log("Destroyed voice connection");
-    message.channel.send("Goodbye!");
   }
 
   stop();
