@@ -256,9 +256,9 @@ async function leave(message) {
     log("ERROR: No voice connection exists");
     message.channel.send("I am not in a voice channel!");
   } else {
-    message.react("👋");
     conn.destroy();
     log("Destroyed voice connection");
+    message.react("👋");
   }
 
   stop();
@@ -268,14 +268,13 @@ async function leave(message) {
 async function help(message) {
 
   message.channel.send(
-`__**Commands**__
-**play [song]**:
-**pause**:
-**play**:
-**skip**:
-**queue**:
-**remove**:
-**leave**:
-`
+    "• **play [song]** - play music where [song] is the name or YouTube URL\n" +
+    "• **pause** - pause current song\n" +
+    "• **play** - resume paused song\n" +
+    "• **skip** - skip current song\n" +
+    "• **stop** - stop current song and clear queue\n" +
+    "• **queue** - list song queue\n" +
+    "• **remove [pos]** - remove song in position [pos] from queue\n" +
+    "• **leave** - leave voice channel"
   );
 }
