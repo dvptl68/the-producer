@@ -10,8 +10,7 @@ const {
   getVoiceConnection,
   AudioPlayerStatus,
   VoiceConnectionStatus,
-  NoSubscriberBehavior,
-  PlayerSubscription
+  NoSubscriberBehavior
 } = require('@discordjs/voice');
 const playdl = require('play-dl');
 const { prefix, token } = require('./config.json');
@@ -66,7 +65,7 @@ client.on('messageCreate', async message => {
     log("Completed command execution\n");
   } else {
     log(`Invalid command "${message.content}" from @${message.member.displayName} (${message.author.tag})\n`);
-    message.channel.send(`Invalid command "${command}"`);
+    message.channel.send(`Invalid command "${message.content}"`);
   }
 });
 
