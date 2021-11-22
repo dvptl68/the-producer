@@ -43,6 +43,7 @@ const actions = {
   "queue": printQueue,
   "remove": remove,
   "leave": leave,
+  "clean": clean,
   "help": help
 };
 
@@ -161,7 +162,7 @@ async function play(message, param) {
     resource: resource,
     channel: message.channel
   });
-  log(`Queued "${songInfo[0].title}" (${songInfo[0].url})`);
+  log(`Created stream and queued "${songInfo[0].title}" (${songInfo[0].url})`);
 
   if (player.state.status === AudioPlayerStatus.Idle) player.emit(AudioPlayerStatus.Idle);
   conn.subscribe(player);
@@ -261,6 +262,22 @@ async function leave(message) {
   }
 
   stop();
+}
+
+// Delete messages from the voice channel
+async function clean(message) {
+
+  let deleted;
+  do {
+    try {
+      deleted = await message.channel.bulkDelete(100);
+    } catch (err) {
+      log(err);
+      break;
+    }
+  } while (deleted.size != 0);
+
+  log("Deleted as many messages as possible");
 }
 
 // Print help for every command
