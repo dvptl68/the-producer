@@ -86,16 +86,15 @@ player.on(AudioPlayerStatus.Idle, async () => {
 
   if (queue.length === 0 || player.state.status !== AudioPlayerStatus.Idle) return;
 
-  const { title, url, channel } = queue.shift();
+  const { title, resource, channel } = queue.shift();
 
   // Attempt to play song, re-emitting event upon failure
   try {
-    const stream = await playdl.stream(url);
-    const resource = createAudioResource(stream.stream, { inputType: stream.type });
     player.play(resource);
   } catch (err) {
+    log(`Failed to play "${title}"`);
     log(err);
-    channel.send(`Failed to play ***${title}***`);
+    channel.send(`Failed to play ***${title}***!`);
     player.emit(AudioPlayerStatus.Idle);
   }
 
@@ -153,6 +152,7 @@ async function play(message, param) {
     log("Created voice connection");
 	} catch (error) {
 		conn.destroy();
+    log("Failed to establish voice connection");
 		log(err);
     message.channel.send("Failed to join voice channel!");
     return;
@@ -160,7 +160,7 @@ async function play(message, param) {
 
   message.react("👍");
 
-  // Search song and add to queue
+  // Search song
   const songInfo = await playdl.search(param, { limit: 1 });
   if (songInfo.length === 0) {
     log(`ERROR: "${param}" not found`);
@@ -168,9 +168,21 @@ async function play(message, param) {
     return;
   }
 
+  // Get song playable resource
+  let resource;
+  try {
+    const stream = await playdl.stream(songInfo[0].url);
+    resource = createAudioResource(stream.stream, { inputType: stream.type });
+  } catch (err) {
+    log(`Failed to queue "${songInfo[0].title}"`);
+    log(err);
+    message.channel.send(`Failed to queue ***${songInfo[0].title}***!`);
+    return;
+  }
+  
   queue.push({
     title: songInfo[0].title,
-    url: songInfo[0].url,
+    resource: resource,
     channel: message.channel
   });
 
@@ -286,6 +298,7 @@ async function clean(message) {
     try {
       deleted = await message.channel.bulkDelete(100);
     } catch (err) {
+      log("Failed to delete messages");
       log(err);
       break;
     }
