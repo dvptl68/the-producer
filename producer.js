@@ -27,7 +27,10 @@ const client = new Client({
 client.login(token);
 
 // Status loggers
-client.on('ready', () => log(`Logged in as ${client.user.tag}\n`));
+client.on('ready', () => {
+  client.user.setActivity("the stu'", { type: "LISTENING" });
+  log(`Logged in as ${client.user.tag}\n`)
+});
 client.on('reconnecting', () => log('Reconnecting\n'));
 client.on('resume', () => log(`Connected ${client.user.tag}\n`));
 client.on('disconnect', () => log('Disconnecting\n'));
@@ -79,26 +82,31 @@ const player = createAudioPlayer({
 let queue = [];
 
 // Plays next song if queue is not empty
-player.on(AudioPlayerStatus.Idle, () => {
+player.on(AudioPlayerStatus.Idle, async () => {
 
-  if (queue.length === 0) return;
+  if (queue.length === 0 || player.state.status !== AudioPlayerStatus.Idle) return;
 
-  const {
-    title,
-    resource,
-    channel
-  } = queue.shift();
+  const { title, url, channel } = queue.shift();
+
+  // Attempt to play song, re-emitting event upon failure
+  try {
+    const stream = await playdl.stream(url);
+    const resource = createAudioResource(stream.stream, { inputType: stream.type });
+    player.play(resource);
+  } catch (err) {
+    log(err);
+    channel.send(`Failed to play ***${title}***`);
+    player.emit(AudioPlayerStatus.Idle);
+  }
 
   log(`Playing "${title}"`);
   channel.send(`Playing ***${title}***`);
-
-  player.play(resource);
 });
 
 // Join voice channel and play given song
 async function play(message, param) {
 
-  // Initial checks
+  // Check that user is in a voice channel
   const channel = message.member?.voice.channel;
   if (!channel) {
     log("ERROR: User not in a voice channel");
@@ -106,16 +114,21 @@ async function play(message, param) {
     return;
   }
 
+  // Check that bot has permissions to join and speak in voice channel
   const permissions = channel.permissionsFor(message.client.user);
-  if (!permissions.has("CONNECT") || !permissions.has("SPEAK")) {
-    log("ERROR: Bot does not have permissions for the voice channel");
-    message.channel.send("I need the permissions to join and speak in your voice channel!");
+  if (!permissions.has("CONNECT")) {
+    log("ERROR: Bot does not have permission to connect to the voice channel");
+    message.channel.send("I need the permissions to connect your voice channel!");
+    return;
+  }
+  if (!permissions.has("SPEAK")) {
+    log("ERROR: Bot does not have permission to speak in the voice channel");
+    message.channel.send("I need the permissions to speak your voice channel!");
     return;
   }
 
+  // If a parameter is not provided, it is either a pause command or an error
   if (!param) {
-
-    // Unpause music if any
     if (player.state.status === AudioPlayerStatus.Paused) {
       player.unpause();
       log("Unpaused music");
@@ -126,17 +139,6 @@ async function play(message, param) {
     }
     return;
   }
-
-  message.react("👍");
-
-  const songInfo = await playdl.search(param, { limit: 1 });
-  if (songInfo.length === 0) {
-    log(`ERROR: "${param}" not found`);
-    message.channel.send(`***${param}*** not found!`);
-    return;
-  }
-
-  message.channel.send(`Queued ***${songInfo[0].title}***\n${songInfo[0].url}`); // sent before stream is created to avoid visible lag
 
   // Join voice channel
   const conn = joinVoiceChannel({
@@ -152,19 +154,31 @@ async function play(message, param) {
 	} catch (error) {
 		conn.destroy();
 		log(err);
+    message.channel.send("Failed to join voice channel!");
+    return;
 	}
 
-	const stream = await playdl.stream(songInfo[0].url);
-  const resource = createAudioResource(stream.stream, { inputType: stream.type });
+  message.react("👍");
+
+  // Search song and add to queue
+  const songInfo = await playdl.search(param, { limit: 1 });
+  if (songInfo.length === 0) {
+    log(`ERROR: "${param}" not found`);
+    message.channel.send(`***${param}*** not found!`);
+    return;
+  }
 
   queue.push({
     title: songInfo[0].title,
-    resource: resource,
+    url: songInfo[0].url,
     channel: message.channel
   });
-  log(`Created stream and queued "${songInfo[0].title}" (${songInfo[0].url})`);
 
-  if (player.state.status === AudioPlayerStatus.Idle) player.emit(AudioPlayerStatus.Idle);
+  log(`Queued "${songInfo[0].title}" (${songInfo[0].url})`);
+  message.channel.send(`Queued ***${songInfo[0].title}***\n${songInfo[0].url}`);
+
+  // Emit player event and subscribe connection to player
+  player.emit(AudioPlayerStatus.Idle);
   conn.subscribe(player);
 };
 
