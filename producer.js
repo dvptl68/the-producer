@@ -82,7 +82,7 @@ const player = createAudioPlayer({
 let queue = [];
 
 // Plays next song if queue is not empty
-player.on(AudioPlayerStatus.Idle, async () => {
+player.on(AudioPlayerStatus.Idle, () => {
 
   if (queue.length === 0 || player.state.status !== AudioPlayerStatus.Idle) return;
 
@@ -117,12 +117,12 @@ async function play(message, param) {
   const permissions = channel.permissionsFor(message.client.user);
   if (!permissions.has("CONNECT")) {
     log("ERROR: Bot does not have permission to connect to the voice channel");
-    message.channel.send("I need the permissions to connect your voice channel!");
+    message.channel.send("I do not have the proper permissions to connect to your voice channel!");
     return;
   }
   if (!permissions.has("SPEAK")) {
     log("ERROR: Bot does not have permission to speak in the voice channel");
-    message.channel.send("I need the permissions to speak your voice channel!");
+    message.channel.send("I do not have the proper permissions to speak in your voice channel!");
     return;
   }
 
@@ -292,6 +292,12 @@ async function leave(message) {
 
 // Delete messages from the voice channel
 async function clean(message) {
+
+  if (!message.channel.permissionsFor(message.client.user).has("MANAGE_MESSAGES")) {
+    log("ERROR: Bot does not have permission to manage messages in the channel");
+    message.channel.send("I do not have the proper permissions to delete messages in this channel!");
+    return;
+  }
 
   let deleted;
   do {
