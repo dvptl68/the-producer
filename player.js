@@ -8,6 +8,7 @@ const {
   VoiceConnectionStatus,
   NoSubscriberBehavior
 } = require('@discordjs/voice');
+const playdl = require('play-dl');
 
 const log = out => console.log(`[${new Date().toLocaleString()}] ${out}`);
 
@@ -23,9 +24,8 @@ class Player {
     });
     this.queue = [];
 
-    /*
     // Plays next song if queue is not empty
-    player.on(AudioPlayerStatus.Idle, () => {
+    this.player.on(AudioPlayerStatus.Idle, () => {
 
       if (this.queue.length === 0 || this.player.state.status !== AudioPlayerStatus.Idle) return;
 
@@ -42,18 +42,17 @@ class Player {
       }
 
       log(`Playing "${title}"`);
-      this.channel.send(`Playing ***${title}***`);
+      channel.send(`Playing ***${title}***`);
     });
-    */
   }
 
-  play(channel) {
+  async playSong(textChannel, voiceChannel, song) {
 
     // Join voice channel
     const conn = joinVoiceChannel({
-		  channelId: channel.id,
-		  guildId: channel.guild.id,
-		  adapterCreator: channel.guild.voiceAdapterCreator
+		  channelId: voiceChannel.id,
+		  guildId: voiceChannel.guild.id,
+		  adapterCreator: voiceChannel.guild.voiceAdapterCreator
 	  });
 
     // Wait 30 seconds for connection to be ready
@@ -64,26 +63,104 @@ class Player {
 		  conn.destroy();
       log("Failed to establish voice connection");
 		  log(err);
-      message.channel.send("Failed to join voice channel!");
-      return;
+      return "Failed to join voice channel!";
 	  }
+
+    // Search song
+    const songInfo = await playdl.search(song, { limit: 1 });
+    if (songInfo.length === 0) {
+      log(`ERROR: "${song}" not found`);
+      return `***${song}*** not found!`;
+    }
+
+    // Get song playable resource
+    const title = songInfo[0].title;
+    const url = songInfo[0].url;
+    let resource;
+    try {
+      const stream = await playdl.stream(url);
+      resource = createAudioResource(stream.stream, { inputType: stream.type });
+    } catch (err) {
+      log(`Failed to queue "${title}"`);
+      log(err);
+      return `Failed to queue ***${title}***!`;
+    }
+  
+    this.queue.push({
+      title: title,
+      resource: resource,
+      channel: textChannel
+    });
+
+    // Emit player event and subscribe connection to player
+    this.player.emit(AudioPlayerStatus.Idle);
+    conn.subscribe(this.player);
+
+    log(`Queued "${title}" (${url})`);
+    return `Queued ***${title}***\n${url}`;
   }
 
   isPaused() {
     return this.player.state.status === AudioPlayerStatus.Paused;
   }
 
+  isPlaying() {
+    return this.player.state.status === AudioPlayerStatus.Playing;
+  }
+
   pause() {
-    if (!this.player.pause()) {
-      log("failed to pause");
-    }
+    this.player.pause();
   }
 
   unpause() {
-    if (!this.player.unpause()) {
-      log("failed to unpause");
-    }
+    this.player.unpause();
   }
+
+  skip() {
+    this.player.stop();
+    this.player.emit(AudioPlayerStatus.Idle);
+  }
+
+  printQueue() {
+
+    let output = "Songs in queue:";
+    if (queue.length === 0) {
+      output = "No songs are in the queue.";
+    } else {
+      for (let i = 0; i < queue.length; i++) {
+        output += `\n**${i + 1}**: *${queue[i].title}*`;
+      }
+    }
+
+    return output;
+  }
+
+  remove(ind) {
+    const { title } = queue[ind - 1];
+    this.queue.splice(ind - 1, 1);
+    return title;
+  }
+
+  stop() {
+    this.queue = [];
+    this.player.stop();
+  }
+
+  leave(guildId) {
+
+    const conn = getVoiceConnection(guildId);
+
+    if (conn === undefined) {
+      log("ERROR: No voice connection exists");
+      return "I am not in a voice channel!";
+    } else {
+      conn.destroy();
+      log("Destroyed voice connection");
+    }
+
+    this.stop();
+  }
+
 }
 
 module.exports = { Player };

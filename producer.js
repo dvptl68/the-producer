@@ -1,5 +1,4 @@
 const { Client, Intents } = require('discord.js');
-const playdl = require('play-dl');
 const { Player } = require('./player');
 const { prefix, token } = require('./config.json');
 
@@ -31,7 +30,7 @@ const actions = {
   "pause": pause,
   "skip": skip,
   "stop": stop,
-  "queue": printQueue,
+  "queue": queue,
   "remove": remove,
   "leave": leave,
   "clean": clean,
@@ -67,13 +66,13 @@ const player = new Player();
 async function play(message, param) {
 
   // Check that user is in a voice channel and bot has proper permissions
-  const channel = message.member?.voice.channel;
-  if (!channel) {
+  const voiceChannel = message.member?.voice.channel;
+  if (!voiceChannel) {
     log("ERROR: User not in a voice channel");
     message.channel.send("You need to be in a voice channel to play music!");
     return;
   }
-  const permissions = channel.permissionsFor(message.client.user);
+  const permissions = voiceChannel.permissionsFor(message.client.user);
   if (!permissions.has("CONNECT")) {
     log("ERROR: Bot does not have permission to connect to the voice channel");
     message.channel.send("I do not have the proper permissions to connect to your voice channel!");
@@ -98,48 +97,17 @@ async function play(message, param) {
     return;
   }
 
-  player.play(channel);
-
   message.react("👍");
 
-  // Search song
-  const songInfo = await playdl.search(param, { limit: 1 });
-  if (songInfo.length === 0) {
-    log(`ERROR: "${param}" not found`);
-    message.channel.send(`***${param}*** not found!`);
-    return;
-  }
-
-  // Get song playable resource
-  let resource;
-  try {
-    const stream = await playdl.stream(songInfo[0].url);
-    resource = createAudioResource(stream.stream, { inputType: stream.type });
-  } catch (err) {
-    log(`Failed to queue "${songInfo[0].title}"`);
-    log(err);
-    message.channel.send(`Failed to queue ***${songInfo[0].title}***!`);
-    return;
-  }
-  
-  queue.push({
-    title: songInfo[0].title,
-    resource: resource,
-    channel: message.channel
-  });
-
-  log(`Queued "${songInfo[0].title}" (${songInfo[0].url})`);
-  message.channel.send(`Queued ***${songInfo[0].title}***\n${songInfo[0].url}`);
-
-  // Emit player event and subscribe connection to player
-  player.emit(AudioPlayerStatus.Idle);
-  conn.subscribe(player);
+  // Play song, outputting message if needed
+  const out = await player.playSong(message.channel, voiceChannel, param);
+  if (out) message.channel.send(out);
 };
 
 // Pause current music if any
 async function pause(message) {
 
-  if (player.state.status === AudioPlayerStatus.Playing) {
+  if (player.isPlaying()) {
     player.pause();
     log("Paused music");
     message.react("⏸️");
@@ -152,84 +120,58 @@ async function pause(message) {
 // Skip current music
 async function skip(message) {
 
-  player.stop();
-  player.emit(AudioPlayerStatus.Idle);
+  player.skip();
   log("Skipped current music");
   message.react("⏭️");
 }
 
 // List song queue
-async function printQueue(message) {
+async function queue(message) {
 
-  let output = "Songs in queue:";
-  if (queue.length === 0) {
-    output = "No songs are in the queue.";
-  } else {
-    for (let i = 0; i < queue.length; i++) {
-      output += `\n**${i + 1}**: *${queue[i].title}*`;
-    }
-  }
-
+  message.channel.send(player.printQueue());
   log("Printed song queue");
-  message.channel.send(output);
 }
 
 // Remove specified music from queue
 async function remove(message, param) {
 
-  // Initial checks
+  // Check that an index is given, is an integer, and in the queue
   if (!param) {
     log("ERROR: No queue index provided");
     message.channel.send("You need to provide a song queue position to remove!");
     return;
   }
-
   const ind = parseInt(param);
-
   if (isNaN(ind)) {
     log("ERROR: Provided parameter is not a number");
     message.channel.send(`"${param}" is not a number!`);
     return;
   }
-
   if (ind < 1 || ind > queue.length) {
     log("ERROR: Provided parameter is not in queue range!");
     message.channel.send(`Position ${ind} is not in the queue!`);
     return;
   }
 
-  const removedInfo = queue[ind - 1];
-  queue.splice(ind - 1, 1);
-  log(`Removed queue item ${ind}: "${removedInfo.title}"`);
-  message.channel.send(`Removed ***${removedInfo.title}*** from queue.`);
+  const title = player.remove(ind);
+  log(`Removed queue item ${ind}: "${title}"`);
+  message.channel.send(`Removed ***${title}*** from queue.`);
 }
 
 // Stop player and clear queue
 async function stop(message = null) {
 
   if (message !== null) message.react("🛑");
-
-  queue = [];
   player.stop();
-
   log("Cleared queue and stopped player");
 }
 
 // Leave voice channel
 async function leave(message) {
 
-  const conn = getVoiceConnection(message.guild.id);
-
-  if (conn === undefined) {
-    log("ERROR: No voice connection exists");
-    message.channel.send("I am not in a voice channel!");
-  } else {
-    conn.destroy();
-    log("Destroyed voice connection");
-    message.react("👋");
-  }
-
-  stop();
+  const out = player.leave(message.guild.id);
+  if (out) message.channel.send(out);
+  else message.react("👋");
 }
 
 // Delete messages from the voice channel
