@@ -1,18 +1,6 @@
-const {
-  Client,
-  Intents
-} = require('discord.js');
-const {
-  joinVoiceChannel,
-  createAudioPlayer,
-  createAudioResource,
-  entersState,
-  getVoiceConnection,
-  AudioPlayerStatus,
-  VoiceConnectionStatus,
-  NoSubscriberBehavior
-} = require('@discordjs/voice');
+const { Client, Intents } = require('discord.js');
 const playdl = require('play-dl');
+const { Player } = require('./player');
 const { prefix, token } = require('./config.json');
 
 // Discord client
@@ -73,47 +61,18 @@ client.on('messageCreate', async message => {
   }
 });
 
-// Audio player and song queue
-const player = createAudioPlayer({
-	behaviors: {
-		noSubscriber: NoSubscriberBehavior.Stop,
-	},
-});
-let queue = [];
-
-// Plays next song if queue is not empty
-player.on(AudioPlayerStatus.Idle, () => {
-
-  if (queue.length === 0 || player.state.status !== AudioPlayerStatus.Idle) return;
-
-  const { title, resource, channel } = queue.shift();
-
-  // Attempt to play song, re-emitting event upon failure
-  try {
-    player.play(resource);
-  } catch (err) {
-    log(`Failed to play "${title}"`);
-    log(err);
-    channel.send(`Failed to play ***${title}***!`);
-    player.emit(AudioPlayerStatus.Idle);
-  }
-
-  log(`Playing "${title}"`);
-  channel.send(`Playing ***${title}***`);
-});
+const player = new Player();
 
 // Join voice channel and play given song
 async function play(message, param) {
 
-  // Check that user is in a voice channel
+  // Check that user is in a voice channel and bot has proper permissions
   const channel = message.member?.voice.channel;
   if (!channel) {
     log("ERROR: User not in a voice channel");
     message.channel.send("You need to be in a voice channel to play music!");
     return;
   }
-
-  // Check that bot has permissions to join and speak in voice channel
   const permissions = channel.permissionsFor(message.client.user);
   if (!permissions.has("CONNECT")) {
     log("ERROR: Bot does not have permission to connect to the voice channel");
@@ -128,7 +87,7 @@ async function play(message, param) {
 
   // If a parameter is not provided, it is either a pause command or an error
   if (!param) {
-    if (player.state.status === AudioPlayerStatus.Paused) {
+    if (player.isPaused()) {
       player.unpause();
       log("Unpaused music");
       message.react("▶️");
@@ -139,24 +98,7 @@ async function play(message, param) {
     return;
   }
 
-  // Join voice channel
-  const conn = joinVoiceChannel({
-		channelId: channel.id,
-		guildId: channel.guild.id,
-		adapterCreator: channel.guild.voiceAdapterCreator
-	});
-
-  // Wait 30 seconds for connection to be ready
-	try {
-		await entersState(conn, VoiceConnectionStatus.Ready, 30e3);
-    log("Created voice connection");
-	} catch (error) {
-		conn.destroy();
-    log("Failed to establish voice connection");
-		log(err);
-    message.channel.send("Failed to join voice channel!");
-    return;
-	}
+  player.play(channel);
 
   message.react("👍");
 
