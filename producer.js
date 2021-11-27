@@ -62,7 +62,6 @@ client.on('messageCreate', async message => {
 
 const player = new Player();
 
-// Join voice channel and play given song
 async function play(message, param) {
 
   // Check that user is in a voice channel and bot has proper permissions
@@ -87,9 +86,7 @@ async function play(message, param) {
   // If a parameter is not provided, it is either a pause command or an error
   if (!param) {
     if (player.isPaused()) {
-      player.unpause();
-      log("Unpaused music");
-      message.react("▶️");
+      if (player.unpause()) message.react("▶️");
     } else {
       log("ERROR: No song provided");
       message.channel.send("You need to provide a song to play!");
@@ -99,40 +96,25 @@ async function play(message, param) {
 
   message.react("👍");
 
-  // Play song, outputting message if needed
-  const out = await player.playSong(message.channel, voiceChannel, param);
-  if (out) message.channel.send(out);
+  // Play song
+  await player.playSong(message.channel, voiceChannel, param);
 };
 
-// Pause current music if any
 async function pause(message) {
 
-  if (player.isPlaying()) {
-    player.pause();
-    log("Paused music");
-    message.react("⏸️");
-  } else {
-    log("ERROR: Nothing currently playing");
-    message.channel.send("Nothing is currently playing!");
-  }
+  if (player.pause(message.channel)) message.react("⏸️");;
 }
 
-// Skip current music
 async function skip(message) {
 
-  player.skip();
-  log("Skipped current music");
-  message.react("⏭️");
+  if (player.skip(message.channel)) message.react("⏭️");
 }
 
-// List song queue
 async function queue(message) {
 
-  message.channel.send(player.printQueue());
-  log("Printed song queue");
+  player.printQueue(message.channel);
 }
 
-// Remove specified music from queue
 async function remove(message, param) {
 
   // Check that an index is given, is an integer, and in the queue
@@ -153,28 +135,19 @@ async function remove(message, param) {
     return;
   }
 
-  const title = player.remove(ind);
-  log(`Removed queue item ${ind}: "${title}"`);
-  message.channel.send(`Removed ***${title}*** from queue.`);
+  player.remove(message.channel, ind);
 }
 
-// Stop player and clear queue
 async function stop(message = null) {
 
-  if (message !== null) message.react("🛑");
-  player.stop();
-  log("Cleared queue and stopped player");
+  if (player.stop(message.channel) && message !== null) message.react("🛑");
 }
 
-// Leave voice channel
 async function leave(message) {
 
-  const out = player.leave(message.guild.id);
-  if (out) message.channel.send(out);
-  else message.react("👋");
+  if (player.leave(message.channel, message.guild.id)) message.react("👋");
 }
 
-// Delete messages from the voice channel
 async function clean(message) {
 
   if (!message.channel.permissionsFor(message.client.user).has("MANAGE_MESSAGES")) {
@@ -197,7 +170,6 @@ async function clean(message) {
   log("Deleted as many messages as possible");
 }
 
-// Print help for every command
 async function help(message) {
 
   message.channel.send(

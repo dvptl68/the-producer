@@ -46,7 +46,8 @@ class Player {
     });
   }
 
-  async playSong(textChannel, voiceChannel, song) {
+  // Join voice channel and play given song
+  async playSong(channel, voiceChannel, song) {
 
     // Join voice channel
     const conn = joinVoiceChannel({
@@ -63,14 +64,16 @@ class Player {
 		  conn.destroy();
       log("Failed to establish voice connection");
 		  log(err);
-      return "Failed to join voice channel!";
+      channel.send("Failed to join voice channel!");
+      return;
 	  }
 
     // Search song
     const songInfo = await playdl.search(song, { limit: 1 });
     if (songInfo.length === 0) {
       log(`ERROR: "${song}" not found`);
-      return `***${song}*** not found!`;
+      channel.send(`***${song}*** not found!`);
+      return;
     }
 
     // Get song playable resource
@@ -83,13 +86,13 @@ class Player {
     } catch (err) {
       log(`Failed to queue "${title}"`);
       log(err);
-      return `Failed to queue ***${title}***!`;
+      channel.send(`Failed to queue ***${title}***!`);
     }
   
     this.queue.push({
       title: title,
       resource: resource,
-      channel: textChannel
+      channel: channel
     });
 
     // Emit player event and subscribe connection to player
@@ -97,70 +100,133 @@ class Player {
     conn.subscribe(this.player);
 
     log(`Queued "${title}" (${url})`);
-    return `Queued ***${title}***\n${url}`;
+    channel.send(`Queued ***${title}***\n${url}`);
   }
 
   isPaused() {
     return this.player.state.status === AudioPlayerStatus.Paused;
   }
 
-  isPlaying() {
-    return this.player.state.status === AudioPlayerStatus.Playing;
+  // Pause current music if any
+  pause(channel) {
+
+    // Check that something is playing
+    if (this.player.state.status !== AudioPlayerStatus.Playing) {
+      log("ERROR: Nothing currently playing");
+      channel.send("Nothing is currently playing!");
+      return false;
+    }
+
+    // Attempt to pause music
+    if (this.player.pause()) {
+      log("Paused music");
+      return true
+    } else {
+      log("ERROR: Failed to pause music");
+      channel.send("Failed to pause music!");
+      return false;
+    }
   }
 
-  pause() {
-    this.player.pause();
+  // Unpause current music
+  unpause(channel) {
+
+    // Attempt to unpause music
+    if (this.player.unpause()) {
+      log("Unpaused music");
+      return true
+    } else {
+      log("ERROR: Failed to unpause music");
+      channel.send("Failed to play music!");
+      return false;
+    }
   }
 
-  unpause() {
-    this.player.unpause();
-  }
-
+  // Skip current music
   skip() {
-    this.player.stop();
-    this.player.emit(AudioPlayerStatus.Idle);
+
+    // Check that something is playing
+    if (this.player.state.status !== AudioPlayerStatus.Playing) {
+      log("ERROR: Nothing currently playing");
+      channel.send("Nothing is currently playing!");
+      return false;
+    }
+
+    // Stop playing and emit idle event
+    if (this.player.stop()) {
+      log("Skipped current song");
+      return true;
+    } else {
+      log("ERROR: Failed to skip song");
+      channel.send("Failed to skip song!");
+      return false;
+    }
   }
 
-  printQueue() {
+  // List song queue
+  printQueue(channel) {
 
+    // Produce queue output string
     let output = "Songs in queue:";
-    if (queue.length === 0) {
+    if (this.queue.length === 0) {
       output = "No songs are in the queue.";
     } else {
-      for (let i = 0; i < queue.length; i++) {
-        output += `\n**${i + 1}**: *${queue[i].title}*`;
+      for (let i = 0; i < this.queue.length; i++) {
+        output += `\n**${i + 1}**: *${this.queue[i].title}*`;
       }
     }
 
-    return output;
+    channel.send(output);
+    log("Printed song queue");
   }
 
-  remove(ind) {
-    const { title } = queue[ind - 1];
+  // Remove specified music from queue
+  remove(channel, ind) {
+
+    const { title } = this.queue[ind - 1];
     this.queue.splice(ind - 1, 1);
-    return title;
+
+    log(`Removed queue item ${ind}: "${title}"`);
+    channel.send(`Removed ***${title}*** from queue.`);
   }
 
-  stop() {
-    this.queue = [];
-    this.player.stop();
-  }
+  // Stop player and clear queue
+  stop(channel) {
 
-  leave(guildId) {
-
-    const conn = getVoiceConnection(guildId);
-
-    if (conn === undefined) {
-      log("ERROR: No voice connection exists");
-      return "I am not in a voice channel!";
-    } else {
-      conn.destroy();
-      log("Destroyed voice connection");
+    // Check that something is playing
+    if (this.player.state.status !== AudioPlayerStatus.Playing) {
+      log("ERROR: Nothing currently playing");
+      channel.send("Nothing is currently playing!");
+      return false;
     }
 
-    this.stop();
+    this.queue = [];
+
+    if (this.player.stop()) {
+      log("Cleared queue and stopped player");
+      return true;
+    } else {
+      log("ERROR: Failed to stop player");
+      channel.send("Failed to stop song!");
+      return false;
+    }
   }
 
+  // Leave voice channel
+  leave(channel, guildId) {
+
+    // Check that a voice connection exists
+    const conn = getVoiceConnection(guildId);
+    if (conn === undefined) {
+      log("ERROR: No voice connection exists");
+      channel.send("I am not in a voice channel!");
+      return false;
+    }
+
+    conn.destroy();
+    log("Destroyed voice connection");
+    return this.stop();
+  }
 }
 
 module.exports = { Player };
