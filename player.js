@@ -22,7 +22,7 @@ class Player {
     // Audio player and song queue
     this.player = createAudioPlayer({
 	    behaviors: {
-		    noSubscriber: NoSubscriberBehavior.Stop,
+		    noSubscriber: NoSubscriberBehavior.Pause,
 	    },
     });
     this.queue = [];
@@ -30,11 +30,7 @@ class Player {
     // Plays next song if queue is not empty
     this.player.on(AudioPlayerStatus.Idle, () => {
 
-      if (this.queue.length === 0) {
-        this.leave(null, this.voiceChannel.guild.id);
-        return;
-      }
-
+      if (this.queue.length === 0) return this.stop(null);
       if (this.player.state.status !== AudioPlayerStatus.Idle) return;
 
       const { title, resource, channel } = this.queue.shift();
@@ -106,12 +102,12 @@ class Player {
       channel: channel
     });
 
+    log(`Queued "${title}" (${url})`);
+    channel.send(`Queued ***${title}***\n${url}`);
+
     // Emit player event and subscribe connection to player
     this.player.emit(AudioPlayerStatus.Idle);
     conn.subscribe(this.player);
-
-    log(`Queued "${title}" (${url})`);
-    channel.send(`Queued ***${title}***\n${url}`);
   }
 
   isPaused() {
@@ -204,40 +200,20 @@ class Player {
   // Stop player and clear queue
   stop(channel) {
 
-    // Check that something is playing
-    if (this.player.state.status !== AudioPlayerStatus.Playing) {
-      log("ERROR: Nothing currently playing");
-      channel.send("Nothing is currently playing!");
-      return false;
-    }
-
-    this.queue = [];
-
-    if (this.player.stop()) {
-      log("Cleared queue and stopped player");
-      return true;
-    } else {
-      log("ERROR: Failed to stop player");
-      channel.send("Failed to stop song!");
-      return false;
-    }
-  }
-
-  // Leave voice channel
-  leave(channel, guildId) {
-
-    // Check that a voice connection exists
-    const conn = getVoiceConnection(guildId);
-    if (conn === undefined) {
+    // Check that bot is in a voice channel and that a voice connection exists
+    let conn;
+    if (this.voiceChannel === null || (conn = getVoiceConnection(this.voiceChannel.guild.id)) === undefined) {
       log("ERROR: No voice connection exists");
       if (channel !== null) channel.send("I am not in a voice channel!");
       return false;
     }
 
+    // Clear queue and destroy voice connection
+    this.voiceChannel = null;
     conn.destroy();
-    log("Destroyed voice connection");
+    this.queue = [];
+    log("Cleared queue and destroyed voice connection");
     return true;
-    // return this.stop();
   }
 }
 

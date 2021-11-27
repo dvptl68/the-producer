@@ -50,10 +50,6 @@ const actions = {
     "func": remove,
     "hasParam": true
   },
-  "leave": { 
-    "func": leave,
-    "hasParam": false
-  },
   "clean": { 
     "func": clean,
     "hasParam": false
@@ -70,6 +66,8 @@ client.on('messageCreate', async message => {
   const content = message.content.toLowerCase();
 
   if (message.author.bot || !content.startsWith(prefix)) return;
+
+  log(`Executing command "${message.content}" from @${message.member.displayName} (${message.author.tag})`);
 
   let splitInd = content.indexOf(" ");
   if (splitInd === -1) splitInd = message.content.length;
@@ -94,7 +92,6 @@ client.on('messageCreate', async message => {
 
   // Execute proper command
   if (command in actions && (actions[command]["hasParam"] === null || param == actions[command]["hasParam"])) {
-    log(`Executing command "${message.content}" from @${message.member.displayName} (${message.author.tag})`);
     await actions[command]["func"](message, param);
     log("Completed command execution\n");
   } else {
@@ -178,12 +175,10 @@ async function remove(message, param) {
 
 async function stop(message = null) {
 
-  if (player.stop(message.channel) && message !== null) message.react("🛑");
-}
-
-async function leave(message) {
-
-  if (player.leave(message.channel, message.guild.id)) message.react("👋");
+  if (player.stop(message.channel) && message !== null) {
+    message.react("🛑");
+    message.react("👋");
+  }
 }
 
 async function clean(message) {
