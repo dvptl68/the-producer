@@ -26,15 +26,42 @@ const log = out => console.log(`[${new Date().toLocaleString()}] ${out}`);
 
 // All commands that bot can execute
 const actions = {
-  "play": play,
-  "pause": pause,
-  "skip": skip,
-  "stop": stop,
-  "queue": queue,
-  "remove": remove,
-  "leave": leave,
-  "clean": clean,
-  "help": help
+  "play": { 
+    "func": play,
+    "hasParam": null
+  },
+  "pause": { 
+    "func": pause,
+    "hasParam": false
+  },
+  "skip": { 
+    "func": skip,
+    "hasParam": false
+  },
+  "stop": { 
+    "func": stop,
+    "hasParam": false
+  },
+  "queue": { 
+    "func": queue,
+    "hasParam": false
+  },
+  "remove": { 
+    "func": remove,
+    "hasParam": true
+  },
+  "leave": { 
+    "func": leave,
+    "hasParam": false
+  },
+  "clean": { 
+    "func": clean,
+    "hasParam": false
+  },
+  "help": { 
+    "func": help,
+    "hasParam": false
+  }
 };
 
 // Performs checks and calls proper action
@@ -50,9 +77,25 @@ client.on('messageCreate', async message => {
   const command = content.substring(prefix.length, splitInd);
   const param = content.substring(splitInd).trim();
 
-  if (command in actions) {
+  // Check that bot has proper permissions
+  const permissions = message.channel.permissionsFor(message.client.user);
+  if (!permissions.has("ADD_REACTIONS") || !permissions.has("VIEW_CHANNEL") || !permissions.has("SEND_MESSAGES") || !permissions.has("EMBED_LINKS")) {
+    log("ERROR: Bot does not have proper permissions in this channel");
+    return;
+  }
+  
+  // Check that user is in a voice channel
+  const voiceChannel = message.member?.voice.channel;
+  if (!voiceChannel) {
+    log("ERROR: User not in a voice channel");
+    message.channel.send("You need to be in a voice channel to use commands!");
+    return;
+  }
+
+  // Execute proper command
+  if (command in actions && (actions[command]["hasParam"] === null || param == actions[command]["hasParam"])) {
     log(`Executing command "${message.content}" from @${message.member.displayName} (${message.author.tag})`);
-    await actions[command](message, param);
+    await actions[command]["func"](message, param);
     log("Completed command execution\n");
   } else {
     log(`Invalid command "${message.content}" from @${message.member.displayName} (${message.author.tag})\n`);
@@ -64,13 +107,8 @@ const player = new Player();
 
 async function play(message, param) {
 
-  // Check that user is in a voice channel and bot has proper permissions
+  // Check that bot has proper permissions
   const voiceChannel = message.member?.voice.channel;
-  if (!voiceChannel) {
-    log("ERROR: User not in a voice channel");
-    message.channel.send("You need to be in a voice channel to play music!");
-    return;
-  }
   const permissions = voiceChannel.permissionsFor(message.client.user);
   if (!permissions.has("CONNECT")) {
     log("ERROR: Bot does not have permission to connect to the voice channel");
@@ -150,6 +188,7 @@ async function leave(message) {
 
 async function clean(message) {
 
+  // Check that bot has proper permissions
   if (!message.channel.permissionsFor(message.client.user).has("MANAGE_MESSAGES")) {
     log("ERROR: Bot does not have permission to manage messages in the channel");
     message.channel.send("I do not have the proper permissions to delete messages in this channel!");

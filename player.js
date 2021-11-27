@@ -16,6 +16,9 @@ class Player {
 
   constructor() {
 
+    // Information needed for proper player functionality
+    this.voiceChannel = null;
+
     // Audio player and song queue
     this.player = createAudioPlayer({
 	    behaviors: {
@@ -27,7 +30,12 @@ class Player {
     // Plays next song if queue is not empty
     this.player.on(AudioPlayerStatus.Idle, () => {
 
-      if (this.queue.length === 0 || this.player.state.status !== AudioPlayerStatus.Idle) return;
+      if (this.queue.length === 0) {
+        this.leave(null, this.voiceChannel.guild.id);
+        return;
+      }
+
+      if (this.player.state.status !== AudioPlayerStatus.Idle) return;
 
       const { title, resource, channel } = this.queue.shift();
 
@@ -49,9 +57,11 @@ class Player {
   // Join voice channel and play given song
   async playSong(channel, voiceChannel, song) {
 
+    this.voiceChannel = voiceChannel;
+
     // Join voice channel
     const conn = joinVoiceChannel({
-		  channelId: voiceChannel.id,
+		  channelId: this.voiceChannel.id,
 		  guildId: voiceChannel.guild.id,
 		  adapterCreator: voiceChannel.guild.voiceAdapterCreator
 	  });
@@ -61,6 +71,7 @@ class Player {
 		  await entersState(conn, VoiceConnectionStatus.Ready, 30e3);
       log("Created voice connection");
 	  } catch (error) {
+      this.voiceChannel = null;
 		  conn.destroy();
       log("Failed to establish voice connection");
 		  log(err);
@@ -219,13 +230,14 @@ class Player {
     const conn = getVoiceConnection(guildId);
     if (conn === undefined) {
       log("ERROR: No voice connection exists");
-      channel.send("I am not in a voice channel!");
+      if (channel !== null) channel.send("I am not in a voice channel!");
       return false;
     }
 
     conn.destroy();
     log("Destroyed voice connection");
-    return this.stop();
+    return true;
+    // return this.stop();
   }
 }
 
