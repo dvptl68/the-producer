@@ -4,8 +4,8 @@
   "description": "A discord music player bot",
   "main": "producer.js",
   "scripts": {
-    "start": "node producer.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start_lts": "node lts.js",
+    "start": "node producer.js"
   },
   "repository": {
     "type": "git",

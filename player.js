@@ -21,9 +21,9 @@ class Player {
 
     // Audio player and song queue
     this.player = createAudioPlayer({
-	    behaviors: {
-		    noSubscriber: NoSubscriberBehavior.Pause,
-	    },
+      behaviors: {
+        noSubscriber: NoSubscriberBehavior.Stop,
+      },
     });
     this.queue = [];
 
@@ -57,23 +57,23 @@ class Player {
 
     // Join voice channel
     const conn = joinVoiceChannel({
-		  channelId: this.voiceChannel.id,
-		  guildId: voiceChannel.guild.id,
-		  adapterCreator: voiceChannel.guild.voiceAdapterCreator
-	  });
+      channelId: this.voiceChannel.id,
+      guildId: voiceChannel.guild.id,
+      adapterCreator: voiceChannel.guild.voiceAdapterCreator
+    });
 
     // Wait 30 seconds for connection to be ready
-	  try {
-		  await entersState(conn, VoiceConnectionStatus.Ready, 30e3);
+    try {
+      await entersState(conn, VoiceConnectionStatus.Ready, 30e3);
       log("Created voice connection");
-	  } catch (error) {
+    } catch (error) {
       this.voiceChannel = null;
-		  conn.destroy();
+      conn.destroy();
       log("Failed to establish voice connection");
-		  log(err);
+      log(err);
       channel.send("Failed to join voice channel!");
       return;
-	  }
+    }
 
     // Search song
     const songInfo = await playdl.search(song, { limit: 1 });
