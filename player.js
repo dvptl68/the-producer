@@ -14,9 +14,10 @@ const log = out => console.log(`[${new Date().toLocaleString()}] ${out}`);
 
 class Player {
 
-  constructor() {
+  constructor(guildId) {
 
     // Information needed for proper player functionality
+    this.guildId = guildId;
     this.voiceChannel = null;
 
     // Audio player and song queue
@@ -58,7 +59,7 @@ class Player {
     // Join voice channel
     const conn = joinVoiceChannel({
       channelId: this.voiceChannel.id,
-      guildId: voiceChannel.guild.id,
+      guildId: this.guildId,
       adapterCreator: voiceChannel.guild.voiceAdapterCreator
     });
 
@@ -201,8 +202,8 @@ class Player {
   stop(channel) {
 
     // Check that bot is in a voice channel and that a voice connection exists
-    let conn;
-    if (this.voiceChannel === null || (conn = getVoiceConnection(this.voiceChannel.guild.id)) === undefined) {
+    let conn = getVoiceConnection(this.guildId);
+    if (conn === undefined) {
       log("ERROR: No voice connection exists");
       if (channel !== null) channel.send("I am not in a voice channel!");
       return false;

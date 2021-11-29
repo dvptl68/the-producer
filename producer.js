@@ -60,6 +60,8 @@ const actions = {
   }
 };
 
+const players = new Map();
+
 // Performs checks and calls proper action
 client.on('messageCreate', async message => {
 
@@ -90,8 +92,9 @@ client.on('messageCreate', async message => {
     return;
   }
 
-  // Execute proper command
+  // Execute proper command, creating new player if needed
   if (command in actions && (actions[command]["hasParam"] === null || param == actions[command]["hasParam"])) {
+    if (players.get(message.guildId) === undefined) players.set(message.guildId, new Player(message.guildId));
     await actions[command]["func"](message, param);
     log("Completed command execution\n");
   } else {
@@ -99,8 +102,6 @@ client.on('messageCreate', async message => {
     message.channel.send(`Invalid command "${message.content}"`);
   }
 });
-
-const player = new Player();
 
 async function play(message, param) {
 
@@ -119,6 +120,7 @@ async function play(message, param) {
   }
 
   // If a parameter is not provided, it is either a pause command or an error
+  const player = players.get(message.guildId);
   if (!param) {
     if (player.isPaused()) {
       if (player.unpause()) message.react("▶️");
@@ -137,16 +139,19 @@ async function play(message, param) {
 
 async function pause(message) {
 
+  const player = players.get(message.guildId);
   if (player.pause(message.channel)) message.react("⏸️");;
 }
 
 async function skip(message) {
 
+  const player = players.get(message.guildId);
   if (player.skip(message.channel)) message.react("⏭️");
 }
 
 async function queue(message) {
 
+  const player = players.get(message.guildId);
   player.printQueue(message.channel);
 }
 
@@ -170,11 +175,13 @@ async function remove(message, param) {
     return;
   }
 
+  const player = players.get(message.guildId);
   player.remove(message.channel, ind);
 }
 
 async function stop(message = null) {
 
+  const player = players.get(message.guildId);
   if (player.stop(message.channel) && message !== null) {
     message.react("🛑");
     message.react("👋");
@@ -213,7 +220,6 @@ async function help(message) {
     "• **skip** - skip current song\n" +
     "• **stop** - stop current song and clear queue\n" +
     "• **queue** - list song queue\n" +
-    "• **remove [pos]** - remove song in position [pos] from queue\n" +
-    "• **leave** - leave voice channel"
+    "• **remove [pos]** - remove song in position [pos] from queue"
   );
 }
