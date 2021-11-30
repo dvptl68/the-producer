@@ -27,10 +27,14 @@ class Player {
       },
     });
     this.queue = [];
+  }
 
-    // Plays next song if queue is not empty
+  // Add listener function for when player becomes idle
+  #addPlayerIdleListener() {
+
     this.player.on(AudioPlayerStatus.Idle, () => {
 
+      // Ensure queue is not empty and status is correct
       if (this.queue.length === 0) return this.stop(null);
       if (this.player.state.status !== AudioPlayerStatus.Idle) return;
 
@@ -106,7 +110,9 @@ class Player {
     log(`Queued "${title}" (${url})`);
     channel.send(`Queued ***${title}***\n${url}`);
 
-    // Emit player event and subscribe connection to player
+    // Replace player listener, emit event, and subscribe connection to player
+    this.player.removeAllListeners();
+    this.#addPlayerIdleListener();
     this.player.emit(AudioPlayerStatus.Idle);
     conn.subscribe(this.player);
   }
@@ -160,17 +166,17 @@ class Player {
     if (this.player.state.status !== AudioPlayerStatus.Playing) {
       log("ERROR: Nothing currently playing");
       channel.send("Nothing is currently playing!");
-      return false;
+      return { "skip": false, "leave": false };
     }
 
     // Stop playing and emit idle event
     if (this.player.stop()) {
       log("Skipped current song");
-      return true;
+      return { "skip": true, "leave": this.queue.length === 0 };
     } else {
       log("ERROR: Failed to skip song");
       channel.send("Failed to skip song!");
-      return false;
+      return { "skip": false, "leave": false };;
     }
   }
 
@@ -214,8 +220,9 @@ class Player {
 
     // Clear queue and destroy voice connection
     this.voiceChannel = null;
-    conn.destroy();
     this.queue = [];
+    this.player.removeAllListeners();
+    conn.destroy();
     log("Cleared queue and destroyed voice connection");
     return true;
   }

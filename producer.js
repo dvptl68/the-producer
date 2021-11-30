@@ -59,7 +59,7 @@ client.on('messageCreate', async message => {
     log("ERROR: Bot does not have proper permissions in this channel");
     return;
   }
-  
+
   // Check that user is in a voice channel
   const voiceChannel = message.member?.voice.channel;
   if (!voiceChannel) {
@@ -95,13 +95,11 @@ async function play(message, param) {
     return;
   }
 
-  // Play song
   message.react("👍");
   await players.get(message.guildId).playSong(message.channel, voiceChannel, param);
 };
 
 async function pause(message) {
-
   if (players.get(message.guildId).pause(message.channel)) message.react("⏸️");;
 }
 
@@ -110,12 +108,12 @@ async function unpause(message) {
 }
 
 async function skip(message) {
-
-  if (players.get(message.guildId).skip(message.channel)) message.react("⏭️");
+  const reactions = players.get(message.guildId).skip(message.channel);
+  if (reactions["skip"]) message.react("⏭️");
+  if (reactions["leave"]) message.react("👋");
 }
 
 async function queue(message) {
-
   players.get(message.guildId).printQueue(message.channel);
 }
 
