@@ -111,10 +111,6 @@ class Player {
     conn.subscribe(this.player);
   }
 
-  isPaused() {
-    return this.player.state.status === AudioPlayerStatus.Paused;
-  }
-
   // Pause current music if any
   pause(channel) {
 
@@ -139,13 +135,20 @@ class Player {
   // Unpause current music
   unpause(channel) {
 
+    // Check that something is paused
+    if (this.player.state.status !== AudioPlayerStatus.Paused) {
+      log("ERROR: Nothing currently paused");
+      channel.send("Nothing is currently paused!");
+      return false;
+    }
+
     // Attempt to unpause music
     if (this.player.unpause()) {
       log("Unpaused music");
       return true
     } else {
       log("ERROR: Failed to unpause music");
-      channel.send("Failed to play music!");
+      channel.send("Failed to unpause music!");
       return false;
     }
   }

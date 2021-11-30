@@ -24,42 +24,18 @@ client.on('disconnect', () => log('Disconnecting\n'));
 
 const log = out => console.log(`[${new Date().toLocaleString()}] ${out}`);
 
-// All commands that bot can execute
+// All commands that bot can execute and map of audio players for each guild
 const actions = {
-  "play": { 
-    "func": play,
-    "hasParam": null
-  },
-  "pause": { 
-    "func": pause,
-    "hasParam": false
-  },
-  "skip": { 
-    "func": skip,
-    "hasParam": false
-  },
-  "stop": { 
-    "func": stop,
-    "hasParam": false
-  },
-  "queue": { 
-    "func": queue,
-    "hasParam": false
-  },
-  "remove": { 
-    "func": remove,
-    "hasParam": true
-  },
-  "clean": { 
-    "func": clean,
-    "hasParam": false
-  },
-  "help": { 
-    "func": help,
-    "hasParam": false
-  }
+  "play": play,
+  "pause": pause,
+  "unpause": unpause,
+  "skip": skip,
+  "stop": stop,
+  "queue": queue,
+  "remove": remove,
+  "clean": clean,
+  "help": help
 };
-
 const players = new Map();
 
 // Performs checks and calls proper action
@@ -93,9 +69,9 @@ client.on('messageCreate', async message => {
   }
 
   // Execute proper command, creating new player if needed
-  if (command in actions && (actions[command]["hasParam"] === null || param == actions[command]["hasParam"])) {
+  if (command in actions && ((actions[command].length > 1) === Boolean(param))) {
     if (players.get(message.guildId) === undefined) players.set(message.guildId, new Player(message.guildId));
-    await actions[command]["func"](message, param);
+    await actions[command](message, param);
     log("Completed command execution\n");
   } else {
     log(`Invalid command "${message.content}" from @${message.member.displayName} (${message.author.tag})\n`);
@@ -119,40 +95,28 @@ async function play(message, param) {
     return;
   }
 
-  // If a parameter is not provided, it is either a pause command or an error
-  const player = players.get(message.guildId);
-  if (!param) {
-    if (player.isPaused()) {
-      if (player.unpause()) message.react("▶️");
-    } else {
-      log("ERROR: No song provided");
-      message.channel.send("You need to provide a song to play!");
-    }
-    return;
-  }
-
-  message.react("👍");
-
   // Play song
-  await player.playSong(message.channel, voiceChannel, param);
+  message.react("👍");
+  await players.get(message.guildId).playSong(message.channel, voiceChannel, param);
 };
 
 async function pause(message) {
 
-  const player = players.get(message.guildId);
-  if (player.pause(message.channel)) message.react("⏸️");;
+  if (players.get(message.guildId).pause(message.channel)) message.react("⏸️");;
+}
+
+async function unpause(message) {
+  if (players.get(message.guildId).unpause(message.channel)) message.react("▶️");
 }
 
 async function skip(message) {
 
-  const player = players.get(message.guildId);
-  if (player.skip(message.channel)) message.react("⏭️");
+  if (players.get(message.guildId).skip(message.channel)) message.react("⏭️");
 }
 
 async function queue(message) {
 
-  const player = players.get(message.guildId);
-  player.printQueue(message.channel);
+  players.get(message.guildId).printQueue(message.channel);
 }
 
 async function remove(message, param) {
@@ -175,14 +139,12 @@ async function remove(message, param) {
     return;
   }
 
-  const player = players.get(message.guildId);
-  player.remove(message.channel, ind);
+  players.get(message.guildId).remove(message.channel, ind);
 }
 
-async function stop(message = null) {
+async function stop(message) {
 
-  const player = players.get(message.guildId);
-  if (player.stop(message.channel) && message !== null) {
+  if (players.get(message.guildId).stop(message.channel)) {
     message.react("🛑");
     message.react("👋");
   }
@@ -216,7 +178,7 @@ async function help(message) {
   message.channel.send(
     "• **play [song]** - play music where [song] is the name or YouTube URL\n" +
     "• **pause** - pause current song\n" +
-    "• **play** - resume paused song\n" +
+    "• **unpause** - resume paused song\n" +
     "• **skip** - skip current song\n" +
     "• **stop** - stop current song and clear queue\n" +
     "• **queue** - list song queue\n" +
