@@ -1,4 +1,5 @@
 const { Client, Intents } = require('discord.js');
+const SimpleLogger = require('simple-node-logger');
 const { Player } = require('./player');
 const { prefix, token } = require('./config.json');
 
@@ -24,7 +25,7 @@ client.on('disconnect', () => log('Disconnecting\n'));
 
 const log = out => console.log(`[${new Date().toLocaleString()}] ${out}`);
 
-// All commands that bot can execute and map of audio players for each guild
+// All commands that bot can execute and map of audio players and loggers for each guild
 const actions = {
   "play": play,
   "pause": pause,
@@ -37,6 +38,7 @@ const actions = {
   "help": help
 };
 const players = new Map();
+const loggers = new Map();
 
 // Performs checks and calls proper action
 client.on('messageCreate', async message => {
@@ -45,6 +47,8 @@ client.on('messageCreate', async message => {
 
   if (message.author.bot || !content.startsWith(prefix)) return;
 
+  // Initiate new guild
+  initiateGuild(message.guild.id, message.guild.name);
   log(`Executing command "${message.content}" from @${message.member.displayName} (${message.author.tag})`);
 
   let splitInd = content.indexOf(" ");
@@ -68,16 +72,30 @@ client.on('messageCreate', async message => {
     return;
   }
 
-  // Execute proper command, creating new player if needed
+  // Execute proper command
   if (command in actions && ((actions[command].length > 1) === Boolean(param))) {
-    if (players.get(message.guildId) === undefined) players.set(message.guildId, new Player(message.guildId));
     await actions[command](message, param);
-    log("Completed command execution\n");
+    log("Completed command execution");
   } else {
-    log(`Invalid command "${message.content}" from @${message.member.displayName} (${message.author.tag})\n`);
+    log(`Invalid command "${message.content}" from @${message.member.displayName} (${message.author.tag})`);
     message.channel.send(`Invalid command "${message.content}"`);
   }
 });
+
+// Create new player and logger if guild is new
+function initiateGuild(guildId, guildName) {
+
+  if (players.get(guildId) === undefined) {
+    players.set(guildId, new Player(guildId, guildName));
+  }
+  if (loggers.get(guildId) === undefined) {
+    loggers.set(guildId, SimpleLogger.createSimpleLogger({
+      logFilePath: `${guildId}--${new Date().toLocaleDateString().replaceAll("/", "-")}.log`,
+      timestampFormat: "YYYY-MM-DD HH:mm:ss",
+      level: "all"
+    }));
+  }
+}
 
 async function play(message, param) {
 

@@ -14,7 +14,7 @@ const log = out => console.log(`[${new Date().toLocaleString()}] ${out}`);
 
 class Player {
 
-  constructor(guildId) {
+  constructor(guildId, guildName) {
 
     // Information needed for proper player functionality
     this.guildId = guildId;
@@ -27,6 +27,8 @@ class Player {
       },
     });
     this.queue = [];
+
+    log(`Created player for guild "${guildName}" (#${guildId})`);
   }
 
   // Add listener function for when player becomes idle
