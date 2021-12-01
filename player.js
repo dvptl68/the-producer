@@ -7,18 +7,17 @@ const {
   AudioPlayerStatus,
   VoiceConnectionStatus,
   NoSubscriberBehavior
-} = require('@discordjs/voice');
-const playdl = require('play-dl');
-
-const log = out => console.log(`[${new Date().toLocaleString()}] ${out}`);
+} = require("@discordjs/voice");
+const playdl = require("play-dl");
 
 class Player {
 
-  constructor(guildId, guildName) {
+  constructor(guildId, logger) {
 
-    // Information needed for proper player functionality
+    // Guild player information
     this.guildId = guildId;
     this.voiceChannel = null;
+    this.log = logger;
 
     // Audio player and song queue
     this.player = createAudioPlayer({
@@ -28,7 +27,7 @@ class Player {
     });
     this.queue = [];
 
-    log(`Created player for guild "${guildName}" (#${guildId})`);
+    this.log.info(`Created player`);
   }
 
   // Add listener function for when player becomes idle
@@ -46,13 +45,13 @@ class Player {
       try {
         this.player.play(resource);
       } catch (err) {
-        log(`Failed to play "${title}"`);
-        log(err);
+        this.log.error(`Failed to play "${title}"`);
+        this.log.error(err);
         channel.send(`Failed to play ***${title}***!`);
         this.player.emit(AudioPlayerStatus.Idle);
       }
 
-      log(`Playing "${title}"`);
+      this.log.info(`Playing "${title}"`);
       channel.send(`Playing ***${title}***`);
     });
   }
@@ -72,12 +71,12 @@ class Player {
     // Wait 30 seconds for connection to be ready
     try {
       await entersState(conn, VoiceConnectionStatus.Ready, 30e3);
-      log("Created voice connection");
+      this.log.info("Created voice connection");
     } catch (error) {
       this.voiceChannel = null;
       conn.destroy();
-      log("Failed to establish voice connection");
-      log(err);
+      this.log.error("Failed to establish voice connection");
+      this.log.error(err);
       channel.send("Failed to join voice channel!");
       return;
     }
@@ -85,7 +84,7 @@ class Player {
     // Search song
     const songInfo = await playdl.search(song, { limit: 1 });
     if (songInfo.length === 0) {
-      log(`ERROR: "${song}" not found`);
+      this.log.error(`"${song}" not found`);
       channel.send(`***${song}*** not found!`);
       return;
     }
@@ -98,8 +97,8 @@ class Player {
       const stream = await playdl.stream(url);
       resource = createAudioResource(stream.stream, { inputType: stream.type });
     } catch (err) {
-      log(`Failed to queue "${title}"`);
-      log(err);
+      this.log.error(`Failed to queue "${title}"`);
+      this.log.error(err);
       channel.send(`Failed to queue ***${title}***!`);
     }
   
@@ -109,7 +108,7 @@ class Player {
       channel: channel
     });
 
-    log(`Queued "${title}" (${url})`);
+    this.log.info(`Queued "${title}" (${url})`);
     channel.send(`Queued ***${title}***\n${url}`);
 
     // Replace player listener, emit event, and subscribe connection to player
@@ -124,17 +123,17 @@ class Player {
 
     // Check that something is playing
     if (this.player.state.status !== AudioPlayerStatus.Playing) {
-      log("ERROR: Nothing currently playing");
+      this.log.warn("Nothing currently playing");
       channel.send("Nothing is currently playing!");
       return false;
     }
 
     // Attempt to pause music
     if (this.player.pause()) {
-      log("Paused music");
+      this.log.info("Paused music");
       return true
     } else {
-      log("ERROR: Failed to pause music");
+      this.log.error("Failed to pause music");
       channel.send("Failed to pause music!");
       return false;
     }
@@ -145,17 +144,17 @@ class Player {
 
     // Check that something is paused
     if (this.player.state.status !== AudioPlayerStatus.Paused) {
-      log("ERROR: Nothing currently paused");
+      this.log.warn("Nothing currently paused");
       channel.send("Nothing is currently paused!");
       return false;
     }
 
     // Attempt to unpause music
     if (this.player.unpause()) {
-      log("Unpaused music");
+      this.log.info("Unpaused music");
       return true
     } else {
-      log("ERROR: Failed to unpause music");
+      this.log.error("Failed to unpause music");
       channel.send("Failed to unpause music!");
       return false;
     }
@@ -166,17 +165,17 @@ class Player {
 
     // Check that something is playing
     if (this.player.state.status !== AudioPlayerStatus.Playing) {
-      log("ERROR: Nothing currently playing");
+      this.log.warn("Nothing currently playing");
       channel.send("Nothing is currently playing!");
       return { "skip": false, "leave": false };
     }
 
     // Stop playing and emit idle event
     if (this.player.stop()) {
-      log("Skipped current song");
+      this.log.info("Skipped current song");
       return { "skip": true, "leave": this.queue.length === 0 };
     } else {
-      log("ERROR: Failed to skip song");
+      this.log.error("Failed to skip song");
       channel.send("Failed to skip song!");
       return { "skip": false, "leave": false };;
     }
@@ -196,7 +195,7 @@ class Player {
     }
 
     channel.send(output);
-    log("Printed song queue");
+    this.log.info("Printed song queue");
   }
 
   // Remove specified music from queue
@@ -205,7 +204,7 @@ class Player {
     const { title } = this.queue[ind - 1];
     this.queue.splice(ind - 1, 1);
 
-    log(`Removed queue item ${ind}: "${title}"`);
+    this.log.info(`Removed queue item ${ind}: "${title}"`);
     channel.send(`Removed ***${title}*** from queue.`);
   }
 
@@ -215,7 +214,7 @@ class Player {
     // Check that bot is in a voice channel and that a voice connection exists
     let conn = getVoiceConnection(this.guildId);
     if (conn === undefined) {
-      log("ERROR: No voice connection exists");
+      this.log.warn("No voice connection exists");
       if (channel !== null) channel.send("I am not in a voice channel!");
       return false;
     }
@@ -225,7 +224,7 @@ class Player {
     this.queue = [];
     this.player.removeAllListeners();
     conn.destroy();
-    log("Cleared queue and destroyed voice connection");
+    this.log.info("Stopped music, cleared queue, and destroyed voice connection");
     return true;
   }
 }
