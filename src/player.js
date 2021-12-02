@@ -161,12 +161,12 @@ class Player {
   }
 
   // Skip current music
-  skip() {
+  skip(channel) {
 
     // Check that something is playing
-    if (this.player.state.status !== AudioPlayerStatus.Playing) {
+    if (this.player.state.status === AudioPlayerStatus.Idle) {
       this.log.warn("Nothing currently playing");
-      channel.send("Nothing is currently playing!");
+      channel.send("Nothing is playing!");
       return { "skip": false, "leave": false };
     }
 
@@ -187,7 +187,7 @@ class Player {
     // Produce queue output string
     let output = "Songs in queue:";
     if (this.queue.length === 0) {
-      output = "No songs are in the queue.";
+      output = "No songs are in the queue!";
     } else {
       for (let i = 0; i < this.queue.length; i++) {
         output += `\n**${i + 1}**: *${this.queue[i].title}*`;
@@ -200,6 +200,19 @@ class Player {
 
   // Remove specified music from queue
   remove(channel, ind) {
+
+    // Check that the given index is an integer and in the queue
+    ind = parseInt(ind);
+    if (isNaN(ind)) {
+      this.log.warn("Provided parameter is not a number");
+      channel.send(`"${param}" is not a number!`);
+      return;
+    }
+    if (ind < 1 || ind > this.queue.length) {
+      this.log.warn("Provided parameter is not in queue range");
+      channel.send(`Song #${ind} is not in the queue!`);
+      return;
+    }
 
     const { title } = this.queue[ind - 1];
     this.queue.splice(ind - 1, 1);
@@ -215,7 +228,7 @@ class Player {
     let conn = getVoiceConnection(this.guildId);
     if (conn === undefined) {
       this.log.warn("No voice connection exists");
-      if (channel !== null) channel.send("I am not in a voice channel!");
+      if (channel !== null) channel.send("Nothing is playing!");
       return false;
     }
 

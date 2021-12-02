@@ -4,7 +4,7 @@
   "description": "A discord music player bot",
   "main": "producer.js",
   "scripts": {
-    "start": "node producer.js"
+    "start": "node src/producer.js"
   },
   "repository": {
     "type": "git",

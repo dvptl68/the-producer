@@ -157,28 +157,7 @@ async function queue(message) {
 }
 
 async function remove(message, param) {
-
-  const log = loggers.get(message.guild.id);
-
-  // Check that an index is given, is an integer, and in the queue
-  if (!param) {
-    log.warn("No queue index provided");
-    message.channel.send("You need to provide a song queue position to remove!");
-    return;
-  }
-  const ind = parseInt(param);
-  if (isNaN(ind)) {
-    log.warn("Provided parameter is not a number");
-    message.channel.send(`"${param}" is not a number!`);
-    return;
-  }
-  if (ind < 1 || ind > queue.length) {
-    log.warn("Provided parameter is not in queue range!");
-    message.channel.send(`Position ${ind} is not in the queue!`);
-    return;
-  }
-
-  players.get(message.guild.id).remove(message.channel, ind);
+  players.get(message.guild.id).remove(message.channel, param);
 }
 
 async function stop(message) {
