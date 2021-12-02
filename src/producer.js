@@ -181,13 +181,8 @@ async function clean(message) {
 
   let deleted;
   do {
-    try {
-      deleted = await message.channel.bulkDelete(100);
-    } catch (err) {
-      log.error("Failed to delete messages");
-      log.error(err);
-      break;
-    }
+    try { deleted = await message.channel.bulkDelete(100); }
+    catch { break; }
   } while (deleted.size != 0);
 
   log.info("Deleted as many messages as possible");

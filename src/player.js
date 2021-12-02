@@ -36,8 +36,7 @@ class Player {
     this.player.on(AudioPlayerStatus.Idle, () => {
 
       // Ensure queue is not empty and status is correct
-      if (this.queue.length === 0) return this.stop(null);
-      if (this.player.state.status !== AudioPlayerStatus.Idle) return;
+      if (this.queue.length === 0 || (this.player.state.status !== AudioPlayerStatus.Idle && this.player.state.status !== AudioPlayerStatus.Paused)) return;
 
       const { title, resource, channel } = this.queue.shift();
 
@@ -173,7 +172,9 @@ class Player {
     // Stop playing and emit idle event
     if (this.player.stop()) {
       this.log.info("Skipped current song");
-      return { "skip": true, "leave": this.queue.length === 0 };
+      let leave = false;
+      if (this.queue.length === 0) leave = this.stop(channel);
+      return { "skip": true, "leave": leave };
     } else {
       this.log.error("Failed to skip song");
       channel.send("Failed to skip song!");
@@ -228,7 +229,7 @@ class Player {
     let conn = getVoiceConnection(this.guildId);
     if (conn === undefined) {
       this.log.warn("No voice connection exists");
-      if (channel !== null) channel.send("Nothing is playing!");
+      channel.send("Nothing is playing!");
       return false;
     }
 
