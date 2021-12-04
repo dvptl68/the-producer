@@ -36,7 +36,8 @@ class Player {
     this.player.on(AudioPlayerStatus.Idle, () => {
 
       // Ensure queue is not empty and status is correct
-      if (this.queue.length === 0 || (this.player.state.status !== AudioPlayerStatus.Idle && this.player.state.status !== AudioPlayerStatus.Paused)) return;
+      if (this.queue.length === 0) return this.stop();
+      if (this.player.state.status !== AudioPlayerStatus.Idle && this.player.state.status !== AudioPlayerStatus.Paused) return;
 
       const { title, resource, channel } = this.queue.shift();
 
@@ -223,13 +224,13 @@ class Player {
   }
 
   // Stop player and clear queue
-  stop(channel) {
+  stop(channel = null) {
 
     // Check that bot is in a voice channel and that a voice connection exists
     let conn = getVoiceConnection(this.guildId);
     if (conn === undefined) {
       this.log.warn("No voice connection exists");
-      channel.send("Nothing is playing!");
+      if (channel !== null) channel.send("Nothing is playing!");
       return false;
     }
 

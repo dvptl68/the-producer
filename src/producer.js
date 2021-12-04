@@ -34,7 +34,7 @@ client.on("error", (info) => log.error(`${info}`));
 function createTodayLogger(fileName) {
 
   const today = new Date();
-  const dir = `logs/${today.getFullYear()}/${today.getMonth()}/${today.getDate()}`;
+  const dir = `logs/${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`;
   require("fs-extra").ensureDirSync(dir);
 
   return require("simple-node-logger").createSimpleLogger({
