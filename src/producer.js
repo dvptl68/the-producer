@@ -2,7 +2,7 @@ const { Client, Intents } = require("discord.js");
 const { Player } = require("./player");
 const { prefix, token } = require("./config.json");
 
-// Discord client
+// Create discord client and login
 const client = new Client({
   intents: [
     Intents.FLAGS.GUILDS,
@@ -34,7 +34,7 @@ client.on("error", (info) => log.error(`${info}`));
 function createTodayLogger(fileName) {
 
   const today = new Date();
-  const dir = `logs/${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`;
+  const dir = `logs/year${today.getFullYear()}/month${today.getMonth() + 1}/day${today.getDate()}`;
   require("fs-extra").ensureDirSync(dir);
 
   return require("simple-node-logger").createSimpleLogger({
@@ -44,7 +44,7 @@ function createTodayLogger(fileName) {
   });
 }
 
-// All commands that bot can execute and map of audio players and loggers for each guild
+// All commands that bot can execute and audio players and loggers for each guild
 const actions = {
   "play": play,
   "pause": pause,
@@ -70,9 +70,9 @@ client.on("messageCreate", async message => {
   const log = initiateGuild(message.guild.id, message.guild.name);
   log.info(`Executing command "${message.content}" from @${message.member.displayName} (${message.author.tag})`);
 
+  // Parse command and any parameters
   let splitInd = content.indexOf(" ");
   if (splitInd === -1) splitInd = message.content.length;
-
   const command = content.substring(prefix.length, splitInd);
   const param = content.substring(splitInd).trim();
 
@@ -104,15 +104,19 @@ client.on("messageCreate", async message => {
 // Create new player and logger if guild is new
 function initiateGuild(guildId, guildName) {
 
+  // Create new logger for guild if needed
   let log = loggers.get(guildId);
-  if (loggers.get(guildId) === undefined) {
+  if (log === undefined) {
     log = createTodayLogger(guildId);
-    log.info(`Logger for guild "${guildName}" (#${guildId})`);
+    log.info(`Log for guild "${guildName}" (#${guildId})`);
     loggers.set(guildId, log);
   }
+
+  // Create new player for guild if needed
   if (players.get(guildId) === undefined) {
     players.set(guildId, new Player(guildId, log));
   }
+
   return log;
 }
 
@@ -172,13 +176,19 @@ async function clean(message) {
 
   const log = loggers.get(message.guild.id);
 
-  // Check that bot has proper permissions
+  // Check that user and bot have proper permissions
+  if (!message.channel.permissionsFor(message.member.user).has("MANAGE_MESSAGES")) {
+    log.warn(`User @${message.member.displayName} (${message.author.tag}) does not have permission to manage messages in the channel`);
+    message.channel.send(`${message.author.toString()} you do not have permission to delete messages in this channel!`);
+    return;
+  }
   if (!message.channel.permissionsFor(message.client.user).has("MANAGE_MESSAGES")) {
     log.warn("Bot does not have permission to manage messages in the channel");
-    message.channel.send("I do not have the proper permissions to delete messages in this channel!");
+    message.channel.send("I do not have permission to delete messages in this channel!");
     return;
   }
 
+  // Delete messages in bulk
   let deleted;
   do {
     try { deleted = await message.channel.bulkDelete(100); }
@@ -197,7 +207,8 @@ async function help(message) {
     "• **skip** - skip current song\n" +
     "• **stop** - stop current song and clear queue\n" +
     "• **queue** - list song queue\n" +
-    "• **remove [pos]** - remove song in position [pos] from queue"
+    "• **remove [pos]** - remove song in position [pos] from queue\n" + 
+    "• **clean** - clear all messages in this channel"
   );
 
   loggers.get(message.guild.id).info("Printed help");

@@ -100,8 +100,9 @@ class Player {
       this.log.error(`Failed to queue "${title}"`);
       this.log.error(err);
       channel.send(`Failed to queue ***${title}***!`);
+      return;
     }
-  
+
     this.queue.push({
       title: title,
       resource: resource,
